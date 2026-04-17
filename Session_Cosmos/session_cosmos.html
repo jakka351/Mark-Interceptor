@@ -1,0 +1,1471 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Session Cosmos · Digital Archaeology Instrument</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Major+Mono+Display&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: #05060a; }
+  body {
+    color: #e4f3fb;
+    font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+    user-select: none;
+  }
+  #root { position: relative; width: 100vw; height: 100vh; }
+  #canvas-mount { position: absolute; inset: 0; }
+
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: rgba(0,40,60,0.2); }
+  ::-webkit-scrollbar-thumb { background: rgba(0,255,209,0.3); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: rgba(0,255,209,0.5); }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 0.4; transform: scale(1); }
+    50% { opacity: 1; transform: scale(1.3); }
+  }
+  @keyframes flicker {
+    0%, 100% { opacity: 0.95; }
+    50% { opacity: 0.85; }
+  }
+  @keyframes spawn {
+    0% { opacity: 0; transform: translateX(-20px); }
+    100% { opacity: 1; transform: translateX(0); }
+  }
+  @keyframes shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+  }
+
+  .scanlines {
+    position: absolute; inset: 0; pointer-events: none;
+    background: repeating-linear-gradient(0deg, rgba(255,255,255,0.015) 0px, rgba(255,255,255,0.015) 1px, transparent 1px, transparent 3px);
+    mix-blend-mode: overlay;
+    animation: flicker 6s infinite;
+    z-index: 5;
+  }
+
+  .top-left {
+    position: absolute; top: 24px; left: 24px; z-index: 10;
+    display: flex; flex-direction: column; gap: 14px;
+    pointer-events: none;
+    max-width: 280px;
+  }
+  .title-main {
+    font-family: 'Major Mono Display', monospace;
+    font-size: 22px; letter-spacing: 0.22em; color: #00ffd1;
+    text-shadow: 0 0 18px rgba(0,255,209,0.6);
+  }
+  .title-sub {
+    font-size: 10px; letter-spacing: 0.3em; color: #5a8ca0;
+    margin-top: 6px;
+  }
+  .stats-block {
+    display: flex; flex-direction: column; gap: 4px;
+    padding: 12px 14px;
+    border: 1px solid rgba(0,255,209,0.2);
+    background: rgba(5,15,22,0.65);
+    backdrop-filter: blur(8px);
+    min-width: 210px;
+  }
+  .stat-row {
+    display: flex; justify-content: space-between; align-items: baseline;
+    font-size: 11px;
+  }
+  .stat-label { color: #5a8ca0; letter-spacing: 0.2em; }
+  .stat-val { color: #e4f3fb; font-weight: 500; letter-spacing: 0.1em; }
+  .stat-val.view { color: #7ad7ff; }
+  .stat-val.act { color: #ff4fd8; }
+  .stat-val.msg { color: #ffb347; }
+
+  /* Activity Ticker */
+  .ticker {
+    margin-top: 14px;
+    padding: 10px 12px;
+    background: rgba(5,15,22,0.7);
+    border: 1px solid rgba(0,255,209,0.15);
+    backdrop-filter: blur(8px);
+    pointer-events: auto;
+    max-height: 320px;
+    overflow: hidden;
+  }
+  .ticker-header {
+    font-size: 9px; letter-spacing: 0.3em; color: #5a8ca0;
+    margin-bottom: 8px;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .ticker-live-dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: #ff4fd8; box-shadow: 0 0 6px #ff4fd8;
+    animation: pulse 1.4s infinite;
+    display: none;
+  }
+  .ticker-live-dot.live { display: inline-block; }
+  .ticker-list {
+    display: flex; flex-direction: column; gap: 2px;
+    max-height: 270px; overflow-y: auto;
+  }
+  .ticker-entry {
+    display: grid;
+    grid-template-columns: 40px 14px 1fr;
+    gap: 6px; align-items: baseline;
+    font-size: 10px; padding: 2px 0;
+    animation: spawn 0.35s ease-out;
+  }
+  .ticker-entry .t-time { color: #5a8ca0; font-size: 9px; }
+  .ticker-entry .t-icon { font-size: 11px; line-height: 1; }
+  .ticker-entry .t-text { color: #e4f3fb; letter-spacing: 0.03em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ticker-entry.view .t-text { color: #7ad7ff; }
+  .ticker-entry.act .t-text { color: #ff4fd8; }
+  .ticker-entry.msg .t-text { color: #ffb347; }
+  .ticker-entry.compose .t-text { color: #fff275; }
+  .ticker-entry.search .t-text { color: #9d7bff; }
+  .ticker-entry.nav .t-text { color: #66ff99; }
+  .ticker-empty {
+    color: #5a8ca0; font-style: italic; font-size: 10px;
+    padding: 6px 0;
+  }
+
+  .top-right {
+    position: absolute; top: 24px; right: 24px; z-index: 10;
+    display: flex; flex-direction: column; gap: 6px;
+    align-items: flex-end;
+  }
+  .mode-label {
+    font-size: 10px; letter-spacing: 0.3em; color: #5a8ca0;
+    margin-bottom: 4px;
+  }
+  .mode-btn {
+    background: rgba(5,15,22,0.65);
+    border: 1px solid rgba(122,215,255,0.25);
+    color: #7ad7ff;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px; letter-spacing: 0.2em;
+    padding: 8px 14px;
+    cursor: pointer;
+    transition: all 0.2s;
+    backdrop-filter: blur(6px);
+    min-width: 110px; text-align: right;
+  }
+  .mode-btn.active {
+    border: 1px solid #00ffd1; color: #00ffd1;
+    box-shadow: 0 0 12px rgba(0,255,209,0.3), inset 0 0 12px rgba(0,255,209,0.08);
+  }
+
+  .hover-tip {
+    position: absolute;
+    bottom: 24px; left: 50%; transform: translateX(-50%);
+    z-index: 10;
+    padding: 10px 18px;
+    background: rgba(5,15,22,0.9);
+    border: 1px solid rgba(0,255,209,0.4);
+    backdrop-filter: blur(8px);
+    pointer-events: none;
+    font-size: 11px;
+    display: flex; flex-direction: column; gap: 4px;
+    min-width: 240px; text-align: center;
+  }
+  .hover-tip .tip-primary { color: #e4f3fb; letter-spacing: 0.05em; font-size: 12px; }
+  .hover-tip .tip-primary .icon { margin-right: 6px; }
+  .hover-tip .tip-secondary {
+    color: #5a8ca0; font-size: 9px; letter-spacing: 0.2em;
+    display: flex; gap: 12px; justify-content: center;
+  }
+  .hover-tip .tip-secondary .req { color: #00ffd1; }
+
+  .detail-card {
+    position: absolute;
+    bottom: 24px; left: 24px;
+    z-index: 15; width: 340px;
+    background: rgba(5,15,22,0.94);
+    border: 1px solid rgba(0,255,209,0.35);
+    box-shadow: 0 0 40px rgba(0,255,209,0.1);
+    backdrop-filter: blur(10px);
+    padding: 16px;
+  }
+  .detail-header {
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 11px; letter-spacing: 0.3em; color: #00ffd1;
+    padding-bottom: 10px; border-bottom: 1px solid rgba(0,255,209,0.15);
+  }
+  .close-btn {
+    background: none; border: none; color: #00ffd1;
+    font-size: 20px; cursor: pointer; line-height: 1; padding: 0;
+  }
+  .detail-activity {
+    font-size: 15px; color: #e4f3fb; margin: 12px 0 4px;
+    letter-spacing: 0.03em;
+  }
+  .detail-activity .icon { margin-right: 8px; }
+  .detail-route {
+    font-size: 10px; color: #5a8ca0; margin-bottom: 12px;
+    letter-spacing: 0.2em;
+  }
+  .detail-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 6px 14px;
+    font-size: 10px;
+  }
+  .detail-k { color: #5a8ca0; letter-spacing: 0.2em; margin-right: 8px; }
+  .detail-v { color: #7ad7ff; }
+  .raw-block {
+    margin-top: 12px; padding-top: 10px; border-top: 1px solid rgba(0,255,209,0.15);
+  }
+  .raw-label { font-size: 9px; letter-spacing: 0.3em; color: #5a8ca0; margin-bottom: 6px; }
+  .raw-pre {
+    font-size: 9px; line-height: 1.5; color: #7ad7ff;
+    white-space: pre-wrap; word-break: break-all;
+    max-height: 140px; overflow: auto;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .scrubber {
+    position: absolute; bottom: 24px; left: 50%; transform: translateX(-50%);
+    z-index: 12; width: min(560px, 70vw);
+    background: rgba(5,15,22,0.85);
+    border: 1px solid rgba(0,255,209,0.3);
+    padding: 10px 16px;
+    backdrop-filter: blur(8px);
+  }
+  .scrub-label {
+    font-size: 10px; letter-spacing: 0.3em; color: #00ffd1;
+    margin-bottom: 6px;
+  }
+  .scrub-input { width: 100%; accent-color: #00ffd1; }
+
+  .legend {
+    position: absolute; bottom: 24px; right: 24px;
+    z-index: 10;
+    padding: 12px 14px;
+    background: rgba(5,15,22,0.65);
+    border: 1px solid rgba(122,215,255,0.15);
+    backdrop-filter: blur(8px);
+    font-size: 10px;
+  }
+  .legend-title { font-size: 9px; letter-spacing: 0.3em; color: #5a8ca0; margin-bottom: 8px; }
+  .legend-section { margin-bottom: 10px; }
+  .legend-section:last-child { margin-bottom: 0; }
+  .legend-row {
+    display: flex; align-items: center; gap: 8px;
+    margin-bottom: 3px;
+  }
+  .legend-dot { width: 8px; height: 8px; border-radius: 50%; box-shadow: 0 0 6px currentColor; }
+  .legend-shape { width: 10px; height: 10px; }
+  .legend-text { color: #e4f3fb; letter-spacing: 0.1em; font-size: 9px; }
+
+  .panel-toggle {
+    position: absolute; top: 50%; right: 24px;
+    transform: translateY(-50%);
+    z-index: 11;
+    background: rgba(5,15,22,0.85);
+    border: 1px solid rgba(0,255,209,0.3);
+    color: #00ffd1;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px; letter-spacing: 0.2em;
+    padding: 10px 12px;
+    cursor: pointer;
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+  }
+  .ingest {
+    position: absolute; top: 50%; right: 70px;
+    transform: translateY(-50%);
+    z-index: 11; width: 360px;
+    background: rgba(5,15,22,0.94);
+    border: 1px solid rgba(0,255,209,0.35);
+    box-shadow: 0 0 40px rgba(0,255,209,0.08);
+    backdrop-filter: blur(10px);
+    padding: 16px;
+    max-height: 85vh;
+    overflow-y: auto;
+  }
+  .ingest-header {
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 10px; letter-spacing: 0.3em; color: #00ffd1;
+    padding-bottom: 10px; border-bottom: 1px solid rgba(0,255,209,0.15);
+    margin-bottom: 10px;
+  }
+  .tabs { display: flex; gap: 4px; margin-bottom: 12px; }
+  .tab-btn {
+    flex: 1; padding: 8px 4px;
+    background: rgba(0,20,30,0.4);
+    border: 1px solid rgba(122,215,255,0.15);
+    color: #5a8ca0;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px; letter-spacing: 0.2em;
+    cursor: pointer; transition: all 0.2s;
+  }
+  .tab-btn.active {
+    color: #00ffd1; border-color: rgba(0,255,209,0.5);
+    background: rgba(0,255,209,0.05);
+  }
+  .textarea {
+    width: 100%; height: 160px; resize: none;
+    background: rgba(0,20,30,0.6);
+    border: 1px solid rgba(122,215,255,0.2);
+    color: #7ad7ff;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px; line-height: 1.5;
+    padding: 10px; outline: none;
+  }
+  .url-input {
+    width: 100%;
+    background: rgba(0,20,30,0.6);
+    border: 1px solid rgba(122,215,255,0.2);
+    color: #7ad7ff;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    padding: 10px; outline: none; margin-bottom: 8px;
+  }
+  .ingest-actions { display: flex; gap: 8px; margin-top: 10px; }
+  .action-btn {
+    flex: 1; background: transparent;
+    border: 1px solid #00ffd1; color: #00ffd1;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px; letter-spacing: 0.25em;
+    padding: 10px 14px; cursor: pointer; transition: all 0.2s;
+  }
+  .action-btn:hover { background: rgba(0,255,209,0.08); }
+  .action-btn.alt { border-color: rgba(122,215,255,0.3); color: #7ad7ff; }
+  .action-btn.danger { border-color: rgba(255,79,216,0.5); color: #ff4fd8; }
+  .hint {
+    margin-top: 10px; font-size: 9px; color: #5a8ca0;
+    letter-spacing: 0.15em; line-height: 1.6;
+  }
+  .stream-status {
+    display: flex; align-items: center; gap: 10px;
+    font-size: 10px; letter-spacing: 0.25em;
+    padding: 10px; margin-bottom: 10px;
+    border: 1px solid;
+  }
+  .stream-status.connected { color: #00ffd1; border-color: rgba(0,255,209,0.4); background: rgba(0,255,209,0.05); }
+  .stream-status.connecting { color: #fff275; border-color: rgba(255,242,117,0.4); background: rgba(255,242,117,0.05); }
+  .stream-status.disconnected { color: #5a8ca0; border-color: rgba(90,140,160,0.3); }
+  .stream-status.error { color: #ff4f4f; border-color: rgba(255,79,79,0.4); background: rgba(255,79,79,0.05); }
+  .stream-status.reconnecting { color: #ffb347; border-color: rgba(255,179,71,0.4); background: rgba(255,179,71,0.05); }
+  .status-pulse {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: currentColor; box-shadow: 0 0 8px currentColor;
+  }
+  .status-pulse.live { animation: pulse 1.4s infinite; }
+  .status-pulse.warn { animation: pulse 0.6s infinite; }
+
+  .stream-meta {
+    font-size: 9px; color: #5a8ca0; letter-spacing: 0.15em;
+    padding: 6px 10px; margin-bottom: 8px;
+    background: rgba(0,20,30,0.4);
+    border-left: 2px solid rgba(0,255,209,0.3);
+  }
+  .stream-meta .k { color: #5a8ca0; }
+  .stream-meta .v { color: #7ad7ff; }
+  .stream-meta-row { display: flex; justify-content: space-between; }
+
+  .event-log {
+    max-height: 140px; overflow-y: auto;
+    font-size: 9px; color: #5a8ca0;
+    background: rgba(0,15,22,0.5);
+    padding: 8px; margin-top: 8px;
+    border: 1px solid rgba(122,215,255,0.1);
+  }
+  .log-entry { padding: 2px 0; letter-spacing: 0.1em; animation: spawn 0.3s ease-out; }
+  .log-entry .ts { color: #5a8ca0; }
+  .log-entry .req { color: #00ffd1; }
+  .log-entry .route { color: #7ad7ff; }
+
+  .load-error {
+    position: absolute; top: 50%; left: 50%;
+    transform: translate(-50%, -50%); z-index: 100;
+    background: rgba(5,15,22,0.95);
+    border: 1px solid rgba(255,79,79,0.5);
+    padding: 24px 32px; max-width: 500px; text-align: center;
+  }
+  .load-error h2 { color: #ff4f4f; font-size: 14px; letter-spacing: 0.25em; margin-bottom: 12px; }
+  .load-error p { color: #e4f3fb; font-size: 11px; line-height: 1.7; margin-bottom: 8px; }
+  .load-error code { color: #fff275; background: rgba(0,0,0,0.4); padding: 2px 6px; font-size: 10px; }
+</style>
+</head>
+<body>
+  <div id="root">
+    <div id="canvas-mount"></div>
+    <div class="scanlines"></div>
+
+    <div class="top-left">
+      <div>
+        <div class="title-main">SESSION·COSMOS</div>
+        <div class="title-sub">digital archaeology instrument</div>
+      </div>
+      <div class="stats-block" id="stats-block"></div>
+      <div class="ticker" id="ticker">
+        <div class="ticker-header">
+          <span>ACTIVITY STREAM</span>
+          <span class="ticker-live-dot" id="ticker-live-dot"></span>
+        </div>
+        <div class="ticker-list" id="ticker-list">
+          <div class="ticker-empty">connect stream or ingest blobs</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="top-right">
+      <div class="mode-label">VIEW</div>
+      <button class="mode-btn active" data-mode="orbit">ORBIT</button>
+      <button class="mode-btn" data-mode="topdown">TOPDOWN</button>
+      <button class="mode-btn" data-mode="replay">REPLAY</button>
+    </div>
+
+    <div class="hover-tip" id="hover-tip" style="display:none;"></div>
+    <div class="detail-card" id="detail-card" style="display:none;"></div>
+
+    <div class="scrubber" id="scrubber" style="display:none;">
+      <div class="scrub-label" id="scrub-label">REPLAY</div>
+      <input type="range" class="scrub-input" id="scrub-input" min="0" max="1" step="0.001" value="1" />
+    </div>
+
+    <div class="legend" id="legend"></div>
+
+    <button class="panel-toggle" id="panel-toggle">HIDE INGEST ▸</button>
+
+    <div class="ingest" id="ingest-panel">
+      <div class="ingest-header"><span>TELEMETRY INGEST</span></div>
+
+      <div class="tabs">
+        <button class="tab-btn active" data-tab="manual">MANUAL</button>
+        <button class="tab-btn" data-tab="live">LIVE PASTE</button>
+        <button class="tab-btn" data-tab="stream">STREAM</button>
+      </div>
+
+      <div class="tab-panel" data-panel="manual">
+        <textarea class="textarea" id="manual-input" spellcheck="false"></textarea>
+        <div class="ingest-actions">
+          <button class="action-btn" id="ingest-btn">INGEST</button>
+          <button class="action-btn alt" id="reset-btn">RESET</button>
+        </div>
+        <div class="hint">
+          single blob → synthetic session reconstruction<br>
+          multiple blobs (blank line / ===) → merged timeline
+        </div>
+      </div>
+
+      <div class="tab-panel" data-panel="live" style="display:none;">
+        <div class="stream-status connected">
+          <span class="status-pulse live"></span>
+          LIVE PASTE ACTIVE
+        </div>
+        <textarea class="textarea" id="live-input" spellcheck="false" placeholder="Paste blobs here — auto-ingests on pause..."></textarea>
+        <div class="hint">events deduplicated by __req · anchored beats synthetic</div>
+      </div>
+
+      <div class="tab-panel" data-panel="stream" style="display:none;">
+        <div class="stream-status disconnected" id="ws-status">
+          <span class="status-pulse"></span>
+          <span id="ws-status-text">DISCONNECTED</span>
+        </div>
+        <div class="stream-meta" id="stream-meta" style="display:none;">
+          <div class="stream-meta-row"><span class="k">last event</span><span class="v" id="meta-last-event">—</span></div>
+          <div class="stream-meta-row"><span class="k">received</span><span class="v" id="meta-received">0</span></div>
+          <div class="stream-meta-row"><span class="k">reconnects</span><span class="v" id="meta-reconnects">0</span></div>
+        </div>
+        <input type="text" class="url-input" id="ws-url" value="ws://localhost:8765" />
+        <div class="ingest-actions">
+          <button class="action-btn" id="ws-connect-btn">CONNECT</button>
+          <button class="action-btn danger" id="ws-disconnect-btn">DISCONNECT</button>
+        </div>
+        <div class="event-log" id="event-log">
+          <div style="color: #5a8ca0; font-style: italic;">no events yet · connect to the relay</div>
+        </div>
+        <div class="hint">
+          auto-reconnects on drop · heartbeat every 20s<br>
+          run cosmos_relay.py + install userscript
+        </div>
+      </div>
+    </div>
+
+    <div class="load-error" id="load-error" style="display:none;">
+      <h2>⚠ 3D ENGINE FAILED TO LOAD</h2>
+      <p>The Three.js library couldn't be fetched from the CDN. Usually a network issue.</p>
+      <p>The UI still works — you can still ingest and inspect blobs — but the 3D visualization won't render.</p>
+      <p style="color:#5a8ca0; margin-top:14px;">Check your internet or try a different browser. CDN: <code>cdnjs.cloudflare.com</code></p>
+    </div>
+  </div>
+
+<!-- ============================================================
+     SHARED CORE — data, activity decoder, state, event emitter
+============================================================ -->
+<script>
+window.Cosmos = (function () {
+  const ROUTE_REGISTRY = {
+    'comet.fbweb.CometHomeRoute':            { label: 'HOME FEED',     layer: 0, color: 0x00ffd1 },
+    'comet.fbweb.CometProfileRoute':         { label: 'PROFILE',       layer: 1, color: 0xff4fd8 },
+    'comet.fbweb.CometMessengerThreadRoute': { label: 'MESSENGER',     layer: 2, color: 0xffb347 },
+    'comet.fbweb.CometNotificationsRoute':   { label: 'NOTIFICATIONS', layer: 3, color: 0xfff275 },
+    'comet.fbweb.CometGroupRoute':           { label: 'GROUPS',        layer: 4, color: 0x9d7bff },
+    'comet.fbweb.CometMarketplaceRoute':     { label: 'MARKETPLACE',   layer: 5, color: 0x66ff99 },
+    'comet.fbweb.CometWatchRoute':           { label: 'WATCH',         layer: 6, color: 0xff6b6b },
+    'comet.fbweb.CometSearchRoute':          { label: 'SEARCH',        layer: 7, color: 0x7ad7ff },
+    'comet.fbweb.CometSettingsRoute':        { label: 'SETTINGS',      layer: 8, color: 0xb8b8b8 },
+  };
+  const LAYER_COUNT = Object.keys(ROUTE_REGISTRY).length;
+  const CCG_STYLE = {
+    EXCELLENT: { color: 0x00ffd1, opacity: 1.0 },
+    GOOD:      { color: 0x7ad7ff, opacity: 0.85 },
+    MODERATE:  { color: 0xfff275, opacity: 0.65 },
+    POOR:      { color: 0xffb347, opacity: 0.5 },
+    BAD:       { color: 0xff4f4f, opacity: 0.35 },
+    UNKNOWN:   { color: 0x888888, opacity: 0.4 },
+  };
+  const DEFAULT_BLOB = "__a\t1\n__aaid\t0\n__ccg\tGOOD\n__comet_req\t15\n__crn\tcomet.fbweb.CometHomeRoute\n__hs\t20560.HCSV2:comet_pkg.2.1...0\n__hsi\t7629646184971383446\n__req\t9o\n__rev\t1037554587\n__s\tl5n4ss:pqd34l:1q3iia\n__spin_b\ttrunk\n__spin_r\t1037554587\n__spin_t\t1776415432\n__user\t100007854783134\ndpr\t1\nfb_dtsg\tNAfvYIq5L6u5-r17dX2fEMFwUbQByyXZ9rhFne1cK45X9uZ3GHqA7qA:15:1776337306\njazoest\t25261\nlsd\tu9qCMdPkv5gF-A6R6d8FYz\nph\tC3";
+
+  // ACTIVITY DECODER — turns friendly_name into human-readable activity
+  // Categories: view | act | msg | compose | search | nav
+  const ACTIVITY_PATTERNS = [
+    // Messaging
+    { re: /Message.*Send|SendMessage|MessengerMessageSend/i, label: 'Sending a message', icon: '✉', category: 'msg' },
+    { re: /Message.*Read|ReadMessage|MarkRead/i,             label: 'Reading messages',  icon: '◉', category: 'msg' },
+    { re: /Message.*Typing|Typing/i,                         label: 'Typing...',         icon: '✎', category: 'msg' },
+    { re: /Message.*Reaction|ReactToMessage/i,               label: 'Reacting to a message', icon: '♥', category: 'msg' },
+    { re: /MessengerThread|MessengerMessage/i,               label: 'Browsing messages', icon: '◈', category: 'msg' },
+    { re: /Messenger/i,                                      label: 'Messenger activity',icon: '◈', category: 'msg' },
+
+    // Social actions (mutations)
+    { re: /FeedbackLike|ReactionsMutation|ReactToStory/i,    label: 'Liking / reacting',  icon: '♥', category: 'act' },
+    { re: /CommentCreate|AddComment/i,                       label: 'Posting a comment', icon: '✎', category: 'compose' },
+    { re: /CommentEdit|EditComment/i,                        label: 'Editing a comment', icon: '✎', category: 'compose' },
+    { re: /CommentDelete|DeleteComment/i,                    label: 'Deleting a comment',icon: '✕', category: 'act' },
+    { re: /Share|SharePostMutation/i,                        label: 'Sharing a post',    icon: '↗', category: 'act' },
+    { re: /FriendRequestSend|SendFriendRequest/i,            label: 'Sending friend request', icon: '+', category: 'act' },
+    { re: /FriendRequestAccept/i,                            label: 'Accepting friend request', icon: '✓', category: 'act' },
+    { re: /Follow|SubscribeUser/i,                           label: 'Following someone', icon: '+', category: 'act' },
+    { re: /Unfollow|UnsubscribeUser/i,                       label: 'Unfollowing',       icon: '-', category: 'act' },
+    { re: /GroupJoin|JoinGroup/i,                            label: 'Joining a group',   icon: '+', category: 'act' },
+    { re: /Save|BookmarkAdd/i,                               label: 'Saving a post',     icon: '★', category: 'act' },
+    { re: /Hide|Unfollow|Snooze/i,                           label: 'Hiding content',    icon: '◌', category: 'act' },
+    { re: /Report/i,                                         label: 'Reporting content', icon: '⚑', category: 'act' },
+    { re: /Block/i,                                          label: 'Blocking user',     icon: '⊘', category: 'act' },
+
+    // Composing
+    { re: /Composer.*Upload|UploadPhoto|UploadVideo/i,       label: 'Uploading media',   icon: '↑', category: 'compose' },
+    { re: /Composer.*Publish|PublishPost|CreatePost/i,       label: 'Publishing a post', icon: '◆', category: 'compose' },
+    { re: /StoriesComposer/i,                                label: 'Creating a story',  icon: '◆', category: 'compose' },
+    { re: /Composer/i,                                       label: 'Composing...',      icon: '✎', category: 'compose' },
+
+    // Search
+    { re: /SearchResults|SearchQuery|SearchSuggestion/i,     label: 'Searching',         icon: '◎', category: 'search' },
+
+    // Profile & people
+    { re: /Profile.*Query|CometProfileRoot/i,                label: 'Viewing a profile', icon: '◉', category: 'view' },
+    { re: /FriendList/i,                                     label: 'Browsing friends',  icon: '◉', category: 'view' },
+
+    // Feed & stories (viewing)
+    { re: /HomePageTimelineFeed|HomeRoot/i,                  label: 'Browsing home feed',icon: '≡', category: 'view' },
+    { re: /FeedStory|FeedRefetch|FeedPaginate/i,             label: 'Scrolling feed',    icon: '↓', category: 'view' },
+    { re: /StoryView|ViewStory/i,                            label: 'Viewing a story',   icon: '◉', category: 'view' },
+    { re: /WatchHome|WatchFeed|VideoPlayer/i,                label: 'Watching videos',   icon: '▶', category: 'view' },
+
+    // Groups
+    { re: /GroupRoot|GroupFeed/i,                            label: 'Viewing a group',   icon: '◉', category: 'view' },
+
+    // Marketplace
+    { re: /MarketplaceSearch/i,                              label: 'Searching marketplace', icon: '◎', category: 'search' },
+    { re: /Marketplace.*Item|MarketplaceProduct/i,           label: 'Viewing a listing', icon: '◉', category: 'view' },
+    { re: /Marketplace/i,                                    label: 'Browsing marketplace', icon: '≡', category: 'view' },
+
+    // Notifications
+    { re: /NotificationsList|NotificationFetch/i,            label: 'Checking notifications', icon: '◉', category: 'view' },
+    { re: /NotificationMarkRead/i,                           label: 'Reading notifications',  icon: '✓', category: 'act' },
+
+    // Navigation / routing
+    { re: /Root.*Query$|PageQuery$|NavBar|SideBar/i,         label: 'Loading page',      icon: '↻', category: 'nav' },
+    { re: /Subscription$/i,                                  label: 'Listening for updates', icon: '◌', category: 'nav' },
+
+    // Settings
+    { re: /Settings/i,                                       label: 'Adjusting settings', icon: '◈', category: 'act' },
+
+    // Logout/login
+    { re: /Logout/i,                                         label: 'Logging out',       icon: '⊘', category: 'act' },
+  ];
+
+  function decodeActivity(friendlyName, route) {
+    if (!friendlyName) {
+      // Fall back to route-based guess
+      if (!route) return { label: 'Unknown activity', icon: '◌', category: 'nav' };
+      const routeLabel = (ROUTE_REGISTRY[route] && ROUTE_REGISTRY[route].label) || 'Unknown';
+      return { label: 'Browsing ' + routeLabel.toLowerCase(), icon: '≡', category: 'view' };
+    }
+    for (const p of ACTIVITY_PATTERNS) {
+      if (p.re.test(friendlyName)) {
+        return { label: p.label, icon: p.icon, category: p.category };
+      }
+    }
+    // Unknown friendly_name — use Query/Mutation heuristic
+    if (/Mutation$/i.test(friendlyName)) {
+      return { label: 'Performing action', icon: '◆', category: 'act' };
+    }
+    if (/Query$/i.test(friendlyName)) {
+      return { label: 'Loading data', icon: '≡', category: 'view' };
+    }
+    return { label: 'Unknown activity', icon: '◌', category: 'nav' };
+  }
+
+  function parseBlob(raw) {
+    const data = {};
+    raw.split(/\n/).forEach(line => {
+      const t = line.trim();
+      if (!t) return;
+      const parts = t.split(/\t+|\s{2,}/);
+      if (parts.length >= 2) data[parts[0].trim()] = parts.slice(1).join(' ').trim();
+    });
+    return data;
+  }
+  function parseMultipleBlobs(raw) {
+    const chunks = raw.split(/\n\s*\n|={3,}/g).map(c => c.trim()).filter(Boolean);
+    return chunks.map(parseBlob).filter(b => b.__req || b.__crn || b.__spin_t);
+  }
+  function reqToNum(req) { return req ? (parseInt(String(req), 36) || 0) : 0; }
+
+  function generateSyntheticSession(realBlob) {
+    const events = [];
+    const realReq = reqToNum(realBlob.__req || '9o');
+    const spinT = parseInt(realBlob.__spin_t || '1776415432', 10);
+    const routes = Object.keys(ROUTE_REGISTRY);
+    let seed = 42;
+    const rand = () => { seed = (seed * 9301 + 49297) % 233280; return seed / 233280; };
+    let currentRoute = 'comet.fbweb.CometHomeRoute';
+    const history = [];
+    // Synthesize plausible activity names too
+    const SYN_ACTIVITIES_BY_ROUTE = {
+      'comet.fbweb.CometHomeRoute': ['CometHomePageTimelineFeedRefetchQuery', 'CometFeedStoryQuery', 'CometUFIFeedbackLikeMutation', 'CometUFICommentCreateMutation'],
+      'comet.fbweb.CometProfileRoute': ['CometProfileRootQuery', 'CometFriendingFriendRequestSendMutation'],
+      'comet.fbweb.CometMessengerThreadRoute': ['MessengerMessageSendMutation', 'MessengerThreadQuery', 'MessengerMarkReadMutation'],
+      'comet.fbweb.CometNotificationsRoute': ['CometNotificationsListQuery', 'CometNotificationMarkReadMutation'],
+      'comet.fbweb.CometGroupRoute': ['CometGroupRootQuery', 'CometGroupFeedQuery'],
+      'comet.fbweb.CometMarketplaceRoute': ['CometMarketplaceSearchQuery', 'CometMarketplaceItemQuery'],
+      'comet.fbweb.CometWatchRoute': ['CometWatchHomeQuery', 'CometVideoPlayerQuery'],
+      'comet.fbweb.CometSearchRoute': ['CometSearchResultsQuery'],
+      'comet.fbweb.CometSettingsRoute': ['CometSettingsQuery'],
+    };
+    for (let i = 0; i < realReq; i++) {
+      if (rand() < 0.08 || i === 0) currentRoute = routes[Math.floor(rand() * routes.length)];
+      const gap = rand() < 0.12 ? 8 + rand() * 45 : 0.3 + rand() * 2.5;
+      const r = rand();
+      let ccg = 'GOOD';
+      if (r < 0.02) ccg = 'BAD';
+      else if (r < 0.08) ccg = 'POOR';
+      else if (r < 0.2) ccg = 'MODERATE';
+      else if (r > 0.92) ccg = 'EXCELLENT';
+      const pool = SYN_ACTIVITIES_BY_ROUTE[currentRoute] || ['CometRootQuery'];
+      const friendly = pool[Math.floor(rand() * pool.length)];
+      history.push({ route: currentRoute, gap, ccg, friendly });
+    }
+    let t = spinT;
+    const revChangeIdx = Math.floor(realReq * 0.6);
+    let rev = '1037554123';
+    for (let i = 0; i < history.length; i++) {
+      t += history[i].gap;
+      if (i === revChangeIdx) rev = '1037554587';
+      const activity = decodeActivity(history[i].friendly, history[i].route);
+      events.push({
+        req: i + 1,
+        route: history[i].route,
+        timestamp: t,
+        ccg: history[i].ccg,
+        rev,
+        friendly: history[i].friendly,
+        activity,
+        synthetic: true,
+      });
+    }
+    const anchorFriendly = realBlob.fb_api_req_friendly_name || 'CometHomePageTimelineFeedRefetchQuery';
+    events.push({
+      req: realReq,
+      route: realBlob.__crn || 'comet.fbweb.CometHomeRoute',
+      timestamp: spinT + realReq * 1.8,
+      ccg: realBlob.__ccg || 'GOOD',
+      rev: realBlob.__rev || '1037554587',
+      friendly: anchorFriendly,
+      activity: decodeActivity(anchorFriendly, realBlob.__crn),
+      synthetic: false,
+      raw: realBlob,
+    });
+    return events;
+  }
+
+  function mergeEvents(existing, incoming) {
+    const map = new Map();
+    existing.forEach(e => map.set(e.req, e));
+    incoming.forEach(e => {
+      const prev = map.get(e.req);
+      if (!prev || (prev.synthetic && !e.synthetic)) map.set(e.req, e);
+    });
+    return Array.from(map.values()).sort((a, b) => a.req - b.req);
+  }
+  function eventToPosition(ev, i, total) {
+    const r = ROUTE_REGISTRY[ev.route] || { layer: 0 };
+    return {
+      x: (i - total / 2) * 1.4,
+      y: r.layer * 3 - (LAYER_COUNT * 3) / 2,
+      z: Math.sin(ev.req * 0.37) * 2 + Math.cos(ev.req * 0.13) * 1.5,
+    };
+  }
+  function blobToEvent(b) {
+    const friendly = b.fb_api_req_friendly_name || '';
+    return {
+      req: reqToNum(b.__req),
+      route: b.__crn || 'comet.fbweb.CometHomeRoute',
+      timestamp: parseInt(b.__spin_t, 10) + reqToNum(b.__req) * 1.5,
+      ccg: b.__ccg || 'GOOD',
+      rev: b.__rev,
+      friendly,
+      activity: decodeActivity(friendly, b.__crn),
+      synthetic: false,
+      raw: b,
+    };
+  }
+
+  const state = {
+    events: [],
+    hoveredEvent: null,
+    selectedEvent: null,
+    cameraMode: 'orbit',
+    replayProgress: 1,
+    ws: null,
+    wsStatus: 'disconnected',
+    wsAutoReconnect: false,
+    wsReconnectAttempts: 0,
+    wsLastMessageTime: 0,
+    wsReceivedCount: 0,
+    wsReconnectCount: 0,
+    wsReconnectTimer: null,
+    wsHealthCheckTimer: null,
+  };
+  state.events = generateSyntheticSession(parseBlob(DEFAULT_BLOB));
+
+  const listeners = { change: [], mode: [], streamEvent: [] };
+  function on(evt, fn) { (listeners[evt] || (listeners[evt] = [])).push(fn); }
+  function emit(evt, ...args) { (listeners[evt] || []).forEach(fn => { try { fn(...args); } catch (e) { console.error(e); } }); }
+
+  return {
+    ROUTE_REGISTRY, LAYER_COUNT, CCG_STYLE, DEFAULT_BLOB,
+    parseBlob, parseMultipleBlobs, reqToNum,
+    generateSyntheticSession, mergeEvents, eventToPosition, blobToEvent,
+    decodeActivity,
+    state, on, emit,
+  };
+})();
+</script>
+
+<!-- ============================================================
+     UI WIRING — all DOM interaction, no Three.js dependency
+============================================================ -->
+<script>
+(function () {
+  'use strict';
+  const C = window.Cosmos;
+  const state = C.state;
+
+  function ready(fn) {
+    if (document.readyState !== 'loading') fn();
+    else document.addEventListener('DOMContentLoaded', fn);
+  }
+
+  function formatDuration(s) {
+    if (s < 60) return s + 's';
+    return Math.floor(s / 60) + 'm ' + (s % 60) + 's';
+  }
+
+  function categorizeEvents(evs) {
+    const counts = { view: 0, act: 0, msg: 0, compose: 0, search: 0, nav: 0 };
+    evs.forEach(e => {
+      const c = e.activity && e.activity.category;
+      if (c && counts[c] !== undefined) counts[c]++;
+    });
+    return counts;
+  }
+
+  function renderStats() {
+    const evs = state.events;
+    if (!evs.length) return;
+    const duration = evs.length > 1 ? evs[evs.length - 1].timestamp - evs[0].timestamp : 0;
+    const real = evs.filter(e => !e.synthetic).length;
+    const cats = categorizeEvents(evs);
+    const el = document.getElementById('stats-block');
+    if (!el) return;
+    el.innerHTML =
+      '<div class="stat-row"><span class="stat-label">events</span><span class="stat-val">' + String(evs.length).padStart(4, '0') + '</span></div>' +
+      '<div class="stat-row"><span class="stat-label">anchored</span><span class="stat-val">' + real + '</span></div>' +
+      '<div class="stat-row"><span class="stat-label">duration</span><span class="stat-val">' + formatDuration(Math.round(duration)) + '</span></div>' +
+      '<div class="stat-row"><span class="stat-label">views</span><span class="stat-val view">' + cats.view + '</span></div>' +
+      '<div class="stat-row"><span class="stat-label">actions</span><span class="stat-val act">' + (cats.act + cats.compose) + '</span></div>' +
+      '<div class="stat-row"><span class="stat-label">messages</span><span class="stat-val msg">' + cats.msg + '</span></div>';
+  }
+
+  function renderLegend() {
+    const routes = Object.entries(C.ROUTE_REGISTRY).slice(0, 6).map(([k, v]) => {
+      const hex = '#' + v.color.toString(16).padStart(6, '0');
+      return '<div class="legend-row"><span class="legend-dot" style="background:' + hex + '; color:' + hex + ';"></span><span class="legend-text">' + v.label + '</span></div>';
+    }).join('');
+    const shapes =
+      '<div class="legend-row"><svg class="legend-shape" viewBox="0 0 10 10"><circle cx="5" cy="5" r="4" fill="#7ad7ff"/></svg><span class="legend-text">VIEW</span></div>' +
+      '<div class="legend-row"><svg class="legend-shape" viewBox="0 0 10 10"><rect x="1" y="1" width="8" height="8" fill="#ff4fd8"/></svg><span class="legend-text">ACTION</span></div>' +
+      '<div class="legend-row"><svg class="legend-shape" viewBox="0 0 10 10"><polygon points="5,1 9,5 5,9 1,5" fill="#ffb347"/></svg><span class="legend-text">MESSAGE</span></div>';
+    const el = document.getElementById('legend');
+    if (el) el.innerHTML =
+      '<div class="legend-title">ACTIVITY TYPE</div>' +
+      '<div class="legend-section">' + shapes + '</div>' +
+      '<div class="legend-title">SURFACES</div>' +
+      '<div class="legend-section">' + routes + '</div>';
+  }
+
+  function renderTicker() {
+    const list = document.getElementById('ticker-list');
+    if (!list) return;
+    const evs = state.events;
+    if (!evs.length) {
+      list.innerHTML = '<div class="ticker-empty">connect stream or ingest blobs</div>';
+      return;
+    }
+    // Show last 20, newest at top
+    const recent = evs.slice(-20).reverse();
+    list.innerHTML = recent.map(ev => {
+      const act = ev.activity || { label: 'Unknown', icon: '◌', category: 'nav' };
+      // Time: if synthetic, show relative; if real, show HH:MM:SS from timestamp
+      let time;
+      try {
+        const d = new Date(ev.timestamp * 1000);
+        time = d.toLocaleTimeString('en-US', { hour12: false }).slice(0, 8);
+      } catch (e) { time = '—'; }
+      return '<div class="ticker-entry ' + act.category + '">' +
+        '<span class="t-time">' + time.slice(3) + '</span>' +
+        '<span class="t-icon">' + act.icon + '</span>' +
+        '<span class="t-text">' + act.label + (ev.synthetic ? '' : ' ◉') + '</span>' +
+      '</div>';
+    }).join('');
+  }
+
+  function renderDetailCard() {
+    const card = document.getElementById('detail-card');
+    if (!card) return;
+    const ev = state.selectedEvent;
+    if (!ev) { card.style.display = 'none'; return; }
+    const rawHtml = ev.raw ? (
+      '<div class="raw-block"><div class="raw-label">raw telemetry</div><pre class="raw-pre">' +
+      Object.entries(ev.raw)
+        .filter(([k]) => !['fb_dtsg', 'lsd', 'jazoest'].includes(k))
+        .slice(0, 14)
+        .map(([k, v]) => k.padEnd(22) + ' ' + String(v).slice(0, 38)).join('\n') +
+      '</pre></div>'
+    ) : '';
+    const routeLabel = (C.ROUTE_REGISTRY[ev.route] && C.ROUTE_REGISTRY[ev.route].label) || ev.route;
+    const act = ev.activity || { label: 'Unknown', icon: '◌', category: 'nav' };
+    card.innerHTML =
+      '<div class="detail-header"><span>REQUEST #' + ev.req + '</span><button class="close-btn" id="detail-close">×</button></div>' +
+      '<div class="detail-activity"><span class="icon">' + act.icon + '</span>' + act.label + '</div>' +
+      '<div class="detail-route">on ' + routeLabel + '</div>' +
+      '<div class="detail-grid">' +
+        '<div><span class="detail-k">type</span><span class="detail-v">' + act.category.toUpperCase() + '</span></div>' +
+        '<div><span class="detail-k">conn</span><span class="detail-v">' + ev.ccg + '</span></div>' +
+        '<div><span class="detail-k">status</span><span class="detail-v">' + (ev.synthetic ? 'reconstructed' : 'anchored') + '</span></div>' +
+        '<div><span class="detail-k">ts</span><span class="detail-v">' + Math.round(ev.timestamp) + '</span></div>' +
+      '</div>' +
+      (ev.friendly ? '<div class="raw-block"><div class="raw-label">operation</div><pre class="raw-pre" style="color:#fff275;">' + ev.friendly + '</pre></div>' : '') +
+      rawHtml;
+    card.style.display = 'block';
+    const closeBtn = document.getElementById('detail-close');
+    if (closeBtn) closeBtn.addEventListener('click', () => {
+      state.selectedEvent = null;
+      renderDetailCard();
+    });
+  }
+
+  function updateScrubber() {
+    const el = document.getElementById('scrub-label');
+    if (el) el.textContent = 'REPLAY · ' + Math.round(state.replayProgress * state.events.length) + ' / ' + state.events.length;
+  }
+
+  function logStreamEvent(ev) {
+    const log = document.getElementById('event-log');
+    if (!log) return;
+    const ph = log.querySelector('[style*="italic"]');
+    if (ph) ph.remove();
+    const now = new Date().toLocaleTimeString('en-US', { hour12: false });
+    const label = (C.ROUTE_REGISTRY[ev.route] && C.ROUTE_REGISTRY[ev.route].label) || 'UNKNOWN';
+    const act = ev.activity || { icon: '◌' };
+    const entry = document.createElement('div');
+    entry.className = 'log-entry';
+    entry.innerHTML = '<span class="ts">' + now + '</span> <span class="req">#' + ev.req + '</span> ' + act.icon + ' <span class="route">' + label + '</span>';
+    log.insertBefore(entry, log.firstChild);
+    while (log.children.length > 30) log.removeChild(log.lastChild);
+  }
+
+  function setStreamStatus(s, text) {
+    state.wsStatus = s;
+    const el = document.getElementById('ws-status');
+    if (!el) return;
+    el.className = 'stream-status ' + s;
+    const pulse = el.querySelector('.status-pulse');
+    if (pulse) {
+      pulse.classList.remove('live', 'warn');
+      if (s === 'connected') pulse.classList.add('live');
+      if (s === 'reconnecting') pulse.classList.add('warn');
+    }
+    const txt = document.getElementById('ws-status-text');
+    if (txt) txt.textContent = text;
+    const tickerDot = document.getElementById('ticker-live-dot');
+    if (tickerDot) tickerDot.classList.toggle('live', s === 'connected');
+    const metaBox = document.getElementById('stream-meta');
+    if (metaBox) metaBox.style.display = (s === 'connected' || s === 'reconnecting') ? 'block' : 'none';
+  }
+
+  function updateStreamMeta() {
+    const last = document.getElementById('meta-last-event');
+    const recv = document.getElementById('meta-received');
+    const rec = document.getElementById('meta-reconnects');
+    if (last) {
+      if (state.wsLastMessageTime) {
+        const secAgo = Math.round((Date.now() - state.wsLastMessageTime) / 1000);
+        last.textContent = secAgo + 's ago';
+      } else {
+        last.textContent = 'never';
+      }
+    }
+    if (recv) recv.textContent = state.wsReceivedCount;
+    if (rec) rec.textContent = state.wsReconnectCount;
+  }
+
+  function openWebSocket(url) {
+    try {
+      const ws = new WebSocket(url);
+      state.ws = ws;
+
+      ws.onopen = () => {
+        state.wsReconnectAttempts = 0;
+        state.wsLastMessageTime = Date.now();
+        setStreamStatus('connected', 'STREAM LIVE');
+        console.log('%c[Session Cosmos] WebSocket connected', 'color: #00ffd1;');
+      };
+
+      ws.onclose = (event) => {
+        state.ws = null;
+        if (state.wsAutoReconnect) {
+          state.wsReconnectCount++;
+          state.wsReconnectAttempts++;
+          // Exponential backoff capped at 15s
+          const delay = Math.min(1000 * Math.pow(1.5, state.wsReconnectAttempts), 15000);
+          setStreamStatus('reconnecting', 'RECONNECTING IN ' + Math.round(delay / 1000) + 's');
+          console.log('[Session Cosmos] reconnecting in', delay + 'ms (attempt', state.wsReconnectAttempts + ')');
+          state.wsReconnectTimer = setTimeout(() => {
+            if (state.wsAutoReconnect) openWebSocket(url);
+          }, delay);
+        } else {
+          setStreamStatus('disconnected', 'DISCONNECTED');
+        }
+        updateStreamMeta();
+      };
+
+      ws.onerror = () => {
+        // Error will be followed by a close; status will update there
+        console.warn('[Session Cosmos] WebSocket error');
+      };
+
+      ws.onmessage = (msg) => {
+        state.wsLastMessageTime = Date.now();
+        try {
+          const data = JSON.parse(msg.data);
+          // Skip control messages (like hello)
+          if (data && data.__type === 'hello') {
+            console.log('[Session Cosmos] relay hello:', data);
+            return;
+          }
+          const blobs = Array.isArray(data) ? data : [data];
+          const newEvents = blobs.filter(b => b.__req || b.__crn).map(C.blobToEvent);
+          if (newEvents.length > 0) {
+            state.events = C.mergeEvents(state.events, newEvents);
+            newEvents.forEach(logStreamEvent);
+            state.wsReceivedCount += newEvents.length;
+            C.emit('change');
+            renderStats();
+            renderTicker();
+          }
+        } catch (err) {
+          console.warn('[Session Cosmos] parse error:', err, msg.data);
+        }
+        updateStreamMeta();
+      };
+    } catch (err) {
+      setStreamStatus('error', 'CONNECTION FAILED');
+      console.error('[Session Cosmos] connect error:', err);
+    }
+  }
+
+  function connectStream() {
+    const urlEl = document.getElementById('ws-url');
+    if (!urlEl) return;
+    const url = urlEl.value.trim();
+    if (!url) return;
+    if (state.wsReconnectTimer) { clearTimeout(state.wsReconnectTimer); state.wsReconnectTimer = null; }
+    if (state.ws) { try { state.ws.close(); } catch (e) {} state.ws = null; }
+    state.wsAutoReconnect = true;
+    state.wsReconnectAttempts = 0;
+    setStreamStatus('connecting', 'CONNECTING...');
+    openWebSocket(url);
+
+    // Health check: if no message received in 60s and we think we're connected, force reconnect
+    if (state.wsHealthCheckTimer) clearInterval(state.wsHealthCheckTimer);
+    state.wsHealthCheckTimer = setInterval(() => {
+      updateStreamMeta();
+      if (state.wsStatus === 'connected' && state.wsLastMessageTime) {
+        const silence = Date.now() - state.wsLastMessageTime;
+        if (silence > 60000) {
+          console.warn('[Session Cosmos] no message in 60s — forcing reconnect');
+          if (state.ws) {
+            try { state.ws.close(); } catch (e) {}
+            // onclose will trigger reconnect
+          }
+        }
+      }
+    }, 3000);
+  }
+
+  function disconnectStream() {
+    state.wsAutoReconnect = false;
+    if (state.wsReconnectTimer) { clearTimeout(state.wsReconnectTimer); state.wsReconnectTimer = null; }
+    if (state.wsHealthCheckTimer) { clearInterval(state.wsHealthCheckTimer); state.wsHealthCheckTimer = null; }
+    if (state.ws) { try { state.ws.close(); } catch (e) {} state.ws = null; }
+    setStreamStatus('disconnected', 'DISCONNECTED');
+  }
+
+  ready(function () {
+    // Mode buttons
+    document.querySelectorAll('.mode-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        state.cameraMode = btn.dataset.mode;
+        const sc = document.getElementById('scrubber');
+        if (sc) sc.style.display = state.cameraMode === 'replay' ? 'block' : 'none';
+        updateScrubber();
+        C.emit('mode', state.cameraMode);
+      });
+    });
+
+    const scrub = document.getElementById('scrub-input');
+    if (scrub) {
+      scrub.addEventListener('input', (e) => {
+        state.replayProgress = parseFloat(e.target.value);
+        updateScrubber();
+      });
+    }
+
+    // Tab buttons
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        document.querySelectorAll('.tab-panel').forEach(p => p.style.display = 'none');
+        const panel = document.querySelector('[data-panel="' + btn.dataset.tab + '"]');
+        if (panel) panel.style.display = 'block';
+      });
+    });
+
+    const manualInput = document.getElementById('manual-input');
+    if (manualInput) manualInput.value = C.DEFAULT_BLOB;
+
+    const ingestBtn = document.getElementById('ingest-btn');
+    if (ingestBtn) {
+      ingestBtn.addEventListener('click', () => {
+        const raw = document.getElementById('manual-input').value;
+        const blobs = C.parseMultipleBlobs(raw);
+        if (!blobs.length) return;
+        if (blobs.length === 1 && state.events.filter(e => !e.synthetic).length <= 1) {
+          state.events = C.generateSyntheticSession(blobs[0]);
+        } else {
+          state.events = C.mergeEvents(state.events, blobs.map(C.blobToEvent));
+        }
+        renderStats();
+        renderTicker();
+        C.emit('change');
+      });
+    }
+
+    const resetBtn = document.getElementById('reset-btn');
+    if (resetBtn) {
+      resetBtn.addEventListener('click', () => {
+        state.events = C.generateSyntheticSession(C.parseBlob(C.DEFAULT_BLOB));
+        state.selectedEvent = null;
+        state.replayProgress = 1;
+        const scrubInput = document.getElementById('scrub-input');
+        if (scrubInput) scrubInput.value = 1;
+        renderDetailCard();
+        renderStats();
+        renderTicker();
+        C.emit('change');
+      });
+    }
+
+    const liveInput = document.getElementById('live-input');
+    if (liveInput) {
+      let liveDebounce;
+      liveInput.addEventListener('input', () => {
+        clearTimeout(liveDebounce);
+        liveDebounce = setTimeout(() => {
+          const raw = liveInput.value;
+          if (!raw.trim()) return;
+          const blobs = C.parseMultipleBlobs(raw);
+          if (!blobs.length) return;
+          state.events = C.mergeEvents(state.events, blobs.map(C.blobToEvent));
+          renderStats();
+          renderTicker();
+          C.emit('change');
+          liveInput.value = '';
+        }, 400);
+      });
+    }
+
+    const wsConnect = document.getElementById('ws-connect-btn');
+    const wsDisconnect = document.getElementById('ws-disconnect-btn');
+    if (wsConnect) wsConnect.addEventListener('click', connectStream);
+    if (wsDisconnect) wsDisconnect.addEventListener('click', disconnectStream);
+
+    let panelOpen = true;
+    const panelToggle = document.getElementById('panel-toggle');
+    if (panelToggle) {
+      panelToggle.addEventListener('click', () => {
+        panelOpen = !panelOpen;
+        const panel = document.getElementById('ingest-panel');
+        if (panel) panel.style.display = panelOpen ? 'block' : 'none';
+        panelToggle.textContent = panelOpen ? 'HIDE INGEST ▸' : 'INGEST ◂';
+      });
+    }
+
+    C.on('change', () => { renderStats(); renderTicker(); });
+
+    renderStats();
+    renderLegend();
+    renderTicker();
+
+    console.log('%c[Session Cosmos] UI ready (v1.1)', 'color: #00ffd1; font-weight: bold;');
+  });
+
+  window.Cosmos.__uiRender = {
+    detailCard: renderDetailCard,
+    stats: renderStats,
+    legend: renderLegend,
+    ticker: renderTicker,
+  };
+})();
+</script>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdnjs.cloudflare.com/ajax/libs/three.js/0.160.0/three.module.min.js"
+  }
+}
+</script>
+
+<script type="module">
+  try {
+    const THREE = await import('three');
+    const C = window.Cosmos;
+    const state = C.state;
+    const { ROUTE_REGISTRY, LAYER_COUNT, CCG_STYLE, eventToPosition } = C;
+
+    const mount = document.getElementById('canvas-mount');
+    if (!mount) throw new Error('canvas-mount missing');
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x05060a);
+    scene.fog = new THREE.Fog(0x05060a, 80, 400);
+    const camera = new THREE.PerspectiveCamera(55, mount.clientWidth / mount.clientHeight, 0.1, 2000);
+    camera.position.set(0, 20, 80);
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setSize(mount.clientWidth, mount.clientHeight);
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.1;
+    mount.appendChild(renderer.domElement);
+
+    // Starfield
+    const starGeo = new THREE.BufferGeometry();
+    const starCount = 2500;
+    const sp = new Float32Array(starCount * 3), sc = new Float32Array(starCount * 3);
+    for (let i = 0; i < starCount; i++) {
+      const r = 300 + Math.random() * 400;
+      const theta = Math.random() * Math.PI * 2;
+      const phi = Math.acos(2 * Math.random() - 1);
+      sp[i*3] = r * Math.sin(phi) * Math.cos(theta);
+      sp[i*3+1] = r * Math.sin(phi) * Math.sin(theta);
+      sp[i*3+2] = r * Math.cos(phi);
+      const shade = 0.4 + Math.random() * 0.6;
+      sc[i*3] = shade * 0.7; sc[i*3+1] = shade * 0.85; sc[i*3+2] = shade;
+    }
+    starGeo.setAttribute('position', new THREE.BufferAttribute(sp, 3));
+    starGeo.setAttribute('color', new THREE.BufferAttribute(sc, 3));
+    const stars = new THREE.Points(starGeo, new THREE.PointsMaterial({
+      size: 0.8, vertexColors: true, transparent: true, opacity: 0.85, sizeAttenuation: true,
+    }));
+    scene.add(stars);
+
+    const grid = new THREE.GridHelper(400, 60, 0x0a3048, 0x071a25);
+    grid.position.y = -(LAYER_COUNT * 3) / 2 - 8;
+    grid.material.transparent = true;
+    grid.material.opacity = 0.35;
+    scene.add(grid);
+
+    Object.entries(ROUTE_REGISTRY).forEach(([key, meta]) => {
+      const y = meta.layer * 3 - (LAYER_COUNT * 3) / 2;
+      const plane = new THREE.Mesh(
+        new THREE.PlaneGeometry(300, 1.2),
+        new THREE.MeshBasicMaterial({ color: meta.color, transparent: true, opacity: 0.04, side: THREE.DoubleSide })
+      );
+      plane.rotation.x = -Math.PI / 2;
+      plane.position.y = y;
+      scene.add(plane);
+      const lineGeo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(-150, y, 0), new THREE.Vector3(150, y, 0)]);
+      scene.add(new THREE.Line(lineGeo, new THREE.LineBasicMaterial({ color: meta.color, transparent: true, opacity: 0.18 })));
+    });
+
+    scene.add(new THREE.AmbientLight(0x4060a0, 0.4));
+    const dirLight = new THREE.DirectionalLight(0xffffff, 0.6);
+    dirLight.position.set(50, 100, 50);
+    scene.add(dirLight);
+
+    const nodesGroup = new THREE.Group(), edgesGroup = new THREE.Group(), anomalyGroup = new THREE.Group();
+    scene.add(nodesGroup, edgesGroup, anomalyGroup);
+
+    function makeTextSprite(text, color) {
+      const c = document.createElement('canvas');
+      c.width = 512; c.height = 96;
+      const ctx = c.getContext('2d');
+      ctx.font = '600 44px ui-monospace, monospace';
+      ctx.textBaseline = 'middle';
+      const hex = '#' + color.toString(16).padStart(6, '0');
+      ctx.fillStyle = hex; ctx.shadowColor = hex; ctx.shadowBlur = 18;
+      ctx.fillText(text, 10, 48);
+      const tex = new THREE.CanvasTexture(c);
+      const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, opacity: 0.9 }));
+      sprite.scale.set(16, 3, 1);
+      return sprite;
+    }
+    Object.entries(ROUTE_REGISTRY).forEach(([key, meta]) => {
+      const y = meta.layer * 3 - (LAYER_COUNT * 3) / 2;
+      const s = makeTextSprite(meta.label, meta.color);
+      s.position.set(-140, y + 0.8, 0);
+      scene.add(s);
+    });
+
+    const raycaster = new THREE.Raycaster();
+    raycaster.params.Points.threshold = 1.2;
+    const pointer = new THREE.Vector2();
+
+    let isDragging = false, prevX = 0, prevY = 0;
+    let yaw = 0, pitch = -0.2, distance = 85;
+    let targetYaw = 0, targetPitch = -0.2, targetDistance = 85;
+
+    const canvas = renderer.domElement;
+    canvas.style.touchAction = 'none';
+    canvas.style.cursor = 'grab';
+    canvas.addEventListener('pointerdown', e => { isDragging = true; prevX = e.clientX; prevY = e.clientY; canvas.style.cursor = 'grabbing'; });
+    window.addEventListener('pointermove', e => {
+      const rect = canvas.getBoundingClientRect();
+      pointer.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+      pointer.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+      if (isDragging) {
+        targetYaw -= (e.clientX - prevX) * 0.005;
+        targetPitch -= (e.clientY - prevY) * 0.005;
+        targetPitch = Math.max(-1.2, Math.min(1.2, targetPitch));
+        prevX = e.clientX; prevY = e.clientY;
+      }
+    });
+    window.addEventListener('pointerup', () => { isDragging = false; canvas.style.cursor = 'grab'; });
+    canvas.addEventListener('wheel', e => {
+      e.preventDefault();
+      targetDistance *= 1 + e.deltaY * 0.001;
+      targetDistance = Math.max(20, Math.min(400, targetDistance));
+    }, { passive: false });
+    canvas.addEventListener('click', () => {
+      raycaster.setFromCamera(pointer, camera);
+      const hits = raycaster.intersectObjects(nodesGroup.children.filter(c => c.userData.event), false);
+      if (hits.length > 0) {
+        state.selectedEvent = hits[0].object.userData.event;
+        if (C.__uiRender) C.__uiRender.detailCard();
+      }
+    });
+    window.addEventListener('resize', () => {
+      camera.aspect = mount.clientWidth / mount.clientHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(mount.clientWidth, mount.clientHeight);
+    });
+
+    // Shape per activity category
+    function geometryForCategory(cat, size) {
+      if (cat === 'act' || cat === 'compose') {
+        return new THREE.BoxGeometry(size * 1.5, size * 1.5, size * 1.5);
+      }
+      if (cat === 'msg') {
+        return new THREE.OctahedronGeometry(size * 1.2, 0);
+      }
+      if (cat === 'search') {
+        return new THREE.TetrahedronGeometry(size * 1.3, 0);
+      }
+      // view, nav, default
+      return new THREE.SphereGeometry(size, 20, 20);
+    }
+
+    function rebuildScene() {
+      [nodesGroup, edgesGroup, anomalyGroup].forEach(g => {
+        while (g.children.length) {
+          const c = g.children[0];
+          g.remove(c);
+          if (c.geometry) c.geometry.dispose();
+          if (c.material) c.material.dispose();
+        }
+      });
+      const evs = state.events;
+      if (!evs.length) return;
+      const positions = evs.map((e, i) => eventToPosition(e, i, evs.length));
+      evs.forEach((ev, i) => {
+        const route = ROUTE_REGISTRY[ev.route] || { color: 0xffffff };
+        const pos = positions[i];
+        const isReal = !ev.synthetic;
+        const size = isReal ? 0.85 : 0.45;
+        const cat = (ev.activity && ev.activity.category) || 'view';
+        const mesh = new THREE.Mesh(
+          geometryForCategory(cat, size),
+          new THREE.MeshBasicMaterial({ color: route.color, transparent: true, opacity: isReal ? 1.0 : 0.75 })
+        );
+        mesh.position.set(pos.x, pos.y, pos.z);
+        mesh.userData.event = ev;
+        // Subtle rotation for cubes/octahedrons so they aren't axis-aligned
+        if (cat !== 'view') {
+          mesh.rotation.set(ev.req * 0.13, ev.req * 0.27, 0);
+        }
+        nodesGroup.add(mesh);
+        const halo = new THREE.Mesh(
+          new THREE.SphereGeometry(size * 2.2, 16, 16),
+          new THREE.MeshBasicMaterial({ color: route.color, transparent: true, opacity: isReal ? 0.22 : 0.1 })
+        );
+        halo.position.copy(mesh.position);
+        nodesGroup.add(halo);
+        if (isReal) {
+          const ring = new THREE.Mesh(
+            new THREE.RingGeometry(1.4, 1.55, 32),
+            new THREE.MeshBasicMaterial({ color: route.color, transparent: true, opacity: 0.8, side: THREE.DoubleSide })
+          );
+          ring.position.copy(mesh.position);
+          ring.lookAt(0, 0, 100);
+          nodesGroup.add(ring);
+        }
+      });
+      for (let i = 1; i < evs.length; i++) {
+        const a = positions[i - 1], b = positions[i];
+        const ccg = CCG_STYLE[evs[i].ccg] || CCG_STYLE.UNKNOWN;
+        const g = new THREE.BufferGeometry().setFromPoints([
+          new THREE.Vector3(a.x, a.y, a.z), new THREE.Vector3(b.x, b.y, b.z),
+        ]);
+        edgesGroup.add(new THREE.Line(g, new THREE.LineBasicMaterial({
+          color: ccg.color, transparent: true, opacity: ccg.opacity * 0.6,
+        })));
+      }
+      let prevRev = null;
+      evs.forEach((ev, i) => {
+        if (prevRev !== null && ev.rev && ev.rev !== prevRev) {
+          const pos = positions[i];
+          const g = new THREE.BufferGeometry().setFromPoints([
+            new THREE.Vector3(pos.x, -20, pos.z), new THREE.Vector3(pos.x, 20, pos.z),
+          ]);
+          const mat = new THREE.LineDashedMaterial({ color: 0xff4fd8, transparent: true, opacity: 0.5, dashSize: 0.6, gapSize: 0.4 });
+          const line = new THREE.Line(g, mat);
+          line.computeLineDistances();
+          anomalyGroup.add(line);
+        }
+        prevRev = ev.rev;
+      });
+    }
+
+    const clock = new THREE.Clock();
+    function animate() {
+      requestAnimationFrame(animate);
+      const dt = clock.getDelta(), t = clock.getElapsedTime();
+      yaw += (targetYaw - yaw) * 0.08;
+      pitch += (targetPitch - pitch) * 0.08;
+      distance += (targetDistance - distance) * 0.08;
+
+      if (state.cameraMode === 'topdown') {
+        targetPitch = -1.3;
+      } else if (state.cameraMode === 'replay') {
+        const evs = state.events;
+        if (evs.length > 0) {
+          const idx = Math.max(0, Math.floor(evs.length * state.replayProgress) - 1);
+          const ev = evs[idx];
+          const pos = eventToPosition(ev, idx, evs.length);
+          camera.position.set(pos.x - 15, pos.y + 6, pos.z + 18);
+          camera.lookAt(pos.x + 8, pos.y, pos.z);
+          camera.position.y += Math.sin(t * 0.6) * 0.3;
+        }
+      }
+
+      if (state.cameraMode !== 'replay') {
+        camera.position.set(
+          Math.sin(yaw) * Math.cos(pitch) * distance,
+          Math.sin(pitch) * distance,
+          Math.cos(yaw) * Math.cos(pitch) * distance
+        );
+        camera.lookAt(0, 0, 0);
+      }
+
+      // Animate action-cubes: slow spin
+      nodesGroup.children.forEach(c => {
+        if (c.userData.event) {
+          const cat = c.userData.event.activity && c.userData.event.activity.category;
+          if (cat === 'act' || cat === 'compose' || cat === 'msg' || cat === 'search') {
+            c.rotation.y += dt * 0.5;
+            c.rotation.x += dt * 0.2;
+          }
+        }
+      });
+
+      if (nodesGroup.children.length > 0) {
+        const last = nodesGroup.children[nodesGroup.children.length - 1];
+        last.scale.setScalar(1 + Math.sin(t * 3) * 0.25);
+      }
+      stars.rotation.y += dt * 0.01;
+
+      raycaster.setFromCamera(pointer, camera);
+      const hits = raycaster.intersectObjects(nodesGroup.children.filter(c => c.userData.event), false);
+      const tip = document.getElementById('hover-tip');
+      if (tip) {
+        if (hits.length > 0 && !state.selectedEvent) {
+          const ev = hits[0].object.userData.event;
+          const label = (ROUTE_REGISTRY[ev.route] && ROUTE_REGISTRY[ev.route].label) || ev.route;
+          const act = ev.activity || { label: 'Unknown', icon: '◌' };
+          tip.style.display = 'flex';
+          tip.innerHTML =
+            '<div class="tip-primary"><span class="icon">' + act.icon + '</span>' + act.label + '</div>' +
+            '<div class="tip-secondary">' +
+              '<span class="req">#' + ev.req + '</span>' +
+              '<span>' + label + '</span>' +
+              '<span>' + ev.ccg + '</span>' +
+              '<span>' + (ev.synthetic ? 'reconstructed' : 'anchored') + '</span>' +
+            '</div>';
+        } else {
+          tip.style.display = 'none';
+        }
+      }
+      renderer.render(scene, camera);
+    }
+    animate();
+
+    C.on('change', rebuildScene);
+    rebuildScene();
+
+    console.log('%c[Session Cosmos] 3D engine online (v1.1)', 'color: #00ffd1; font-weight: bold;');
+  } catch (err) {
+    console.error('[Session Cosmos] 3D engine failed to load:', err);
+    const errPanel = document.getElementById('load-error');
+    if (errPanel) errPanel.style.display = 'block';
+  }
+</script>
+</body>
+</html>
