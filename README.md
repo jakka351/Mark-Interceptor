@@ -65,6 +65,9 @@ A rendered portrait of the sample lives at [`Reflex/sample_report.html`](Reflex/
 
 ---
 
+<img width="1915" height="834" alt="image" src="https://github.com/user-attachments/assets/e92248aa-ce77-45fd-9a33-4c771e303bcc" />
+
+
 ## Quick start (five minutes)
 
 You need Python (3.9+), a Chromium-family browser, and the free [Tampermonkey](https://www.tampermonkey.net/) extension.
