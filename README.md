@@ -437,3 +437,6 @@ MIT. Do what you want. Watch the watcher.
 ## Credits
 
 Built with [Claude](https://claude.ai). Aesthetic borrowed from late-night synthwave and the covers of old cyberpunk paperbacks.
+
+## Final Note
+Fuck off Mark
