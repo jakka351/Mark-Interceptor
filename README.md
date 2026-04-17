@@ -158,6 +158,9 @@ The two tools are decoupled through a single file format: NDJSON, one captured b
 
 ---
 
+<img width="823" height="477" alt="image" src="https://github.com/user-attachments/assets/7516a112-4b2a-4aad-9607-fea8083e37aa" />
+
+
 ## Session Cosmos in depth
 
 ### What the interceptor captures
