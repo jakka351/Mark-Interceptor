@@ -127,6 +127,9 @@ python reflex.py sample_session.ndjson -o report.html
 
 ---
 
+<img width="1902" height="908" alt="image" src="https://github.com/user-attachments/assets/43a229da-9efb-4f8d-9cf2-7bebffd57efe" />
+
+
 ## Architecture
 
 ```
