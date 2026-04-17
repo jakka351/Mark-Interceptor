@@ -10,7 +10,8 @@ A two-part, localhost-only toolkit for algorithmic self-research:
 
 Pure Python stdlib on the backend. Zero build step on the frontend. Nothing leaves your machine. No Facebook API. No third-party data. No calls home.
 
-<img width="936" height="369" alt="image" src="https://github.com/user-attachments/assets/d7de73b9-32dc-4bc1-a879-32ddc60a91a3" />
+<img width="982" height="540" alt="image" src="https://github.com/user-attachments/assets/1c740d0c-baae-41be-8b64-de269a22430a" />
+
 
 
 ---
