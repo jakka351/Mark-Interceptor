@@ -8,6 +8,8 @@ A two-part, localhost-only toolkit for algorithmic self-research:
 - **Session Cosmos** — captures the hidden telemetry fields Facebook/Meta attaches to every request, and renders them live as a navigable 3D space you can fly through.  
 - **Reflex** — reads the captured stream back offline and produces a single self-contained HTML portrait of the feedback loop between *you* and the ranking algorithm.  
 
+<br/>
+<br/>
 <sup>
      
 **Pure Python stdlib on the backend. Zero build step on the frontend. Nothing leaves your machine. No calls home.**  
