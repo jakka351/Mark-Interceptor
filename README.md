@@ -1,5 +1,5 @@
 # Mark-Interceptor
-Watching the reflection of Facebook watching us. A way to look into the algorithm and it's grip on us. ** Updated & Supercharged **  
+Watching the reflection of Facebook watching us. A way to look into the algorithm and it's grip on us. **Updated & Supercharged**  
 
 > **Capture your own Facebook session telemetry. Watch it render as a 3D cosmos. Then let the mirror tell you who you are when the algorithm is watching.**
 
@@ -12,7 +12,7 @@ A two-part, localhost-only toolkit for algorithmic self-research:
 <br/>
 <sup>
      
-**Pure Python stdlib on the backend. Zero build step on the frontend. Nothing leaves your machine. No calls home.**  
+**Pure Python stdlib on the backend. Zero build step on the frontend. Nothing leaves your machine. No calls home.**   
       
 </sup>
 
