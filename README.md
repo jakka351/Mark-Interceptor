@@ -1,5 +1,5 @@
 # Mark-Interceptor
-Watching the reflection of Facebook watching us. A way to look into the algorithm and it's grip o'er us.
+Watching the reflection of Facebook watching us. A way to look into the algorithm and it's grip on us. ** Updated & Supercharged **  
 
 > **Capture your own Facebook session telemetry. Watch it render as a 3D cosmos. Then let the mirror tell you who you are when the algorithm is watching.**
 
