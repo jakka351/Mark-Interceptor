@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Reflex · live session</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Major+Mono+Display&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { background: #05060a; color: #e4f3fb;
+    font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 14px; line-height: 1.6; }
+  body { padding: 48px 32px 120px; max-width: 1080px; margin: 0 auto; }
+  .scanlines { position: fixed; inset: 0; pointer-events: none;
+    background: repeating-linear-gradient(0deg, rgba(255,255,255,0.014) 0px, rgba(255,255,255,0.014) 1px, transparent 1px, transparent 3px);
+    mix-blend-mode: overlay; z-index: 100; }
+  header { margin-bottom: 60px; border-bottom: 1px solid rgba(0,255,209,0.2); padding-bottom: 28px; }
+  h1 { font-family: 'Major Mono Display', monospace; font-size: 44px;
+    color: #00ffd1; letter-spacing: 0.12em;
+    text-shadow: 0 0 24px rgba(0,255,209,0.5); margin-bottom: 6px; }
+  .subtitle { color: #ff4fd8; letter-spacing: 0.35em; font-size: 11px; margin-bottom: 18px; }
+  .meta { color: #5a8ca0; font-size: 11px; letter-spacing: 0.18em; }
+  .meta span { color: #7ad7ff; }
+
+  .summary-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 48px; }
+  .stat-card { padding: 16px 18px; border: 1px solid rgba(0,255,209,0.2);
+    background: rgba(5,25,35,0.4); }
+  .stat-card .v { font-size: 28px; color: #00ffd1; letter-spacing: 0.05em; font-weight: 500; display: block; }
+  .stat-card .l { color: #5a8ca0; font-size: 10px; letter-spacing: 0.25em; margin-top: 4px; }
+
+  section { margin-bottom: 60px; }
+  section h2 { color: #00ffd1; font-size: 14px; letter-spacing: 0.3em;
+    margin-bottom: 8px; padding-bottom: 10px; border-bottom: 1px solid rgba(0,255,209,0.15); }
+  section .idx { color: #ff4fd8; margin-right: 10px; }
+  section .num { color: #5a8ca0; font-size: 11px; }
+  section .description { color: #b8d4e0; font-size: 12px; line-height: 1.75;
+    max-width: 72ch; margin: 14px 0 20px; }
+  section .description em { color: #ff4fd8; font-style: normal; }
+  section .plot { display: block; margin: 0 auto; max-width: 100%; }
+  section .plot-narrow { max-width: 680px; margin: 0 auto; }
+  section .plot-narrow svg { width: 100%; height: auto; }
+  section .findings { margin-top: 20px; padding: 14px 18px;
+    background: rgba(10,30,40,0.5); border-left: 2px solid #ff4fd8;
+    font-size: 12px; color: #e4f3fb; }
+  section .findings strong { color: #ff4fd8; letter-spacing: 0.2em; font-size: 10px;
+    display: block; margin-bottom: 6px; }
+  section .findings p { margin: 4px 0; }
+
+  .grid { fill: none; stroke: rgba(122,215,255,0.06); stroke-width: 1; }
+  .grid-line { stroke: rgba(122,215,255,0.08); stroke-width: 1; }
+  .axis-mark { stroke: #ff4fd8; stroke-width: 1; stroke-dasharray: 4,3; opacity: 0.5; }
+  .tick { stroke: #5a8ca0; stroke-width: 1; }
+  .ring { stroke: rgba(122,215,255,0.1); stroke-width: 1; }
+  .label-sm { fill: #7ad7ff; font-family: 'JetBrains Mono', monospace;
+    font-size: 10px; letter-spacing: 0.15em; }
+  .label-xs { fill: #5a8ca0; font-family: 'JetBrains Mono', monospace;
+    font-size: 9px; letter-spacing: 0.12em; }
+  .empty { padding: 30px; text-align: center; color: #5a8ca0;
+    border: 1px dashed rgba(122,215,255,0.2); font-size: 11px; letter-spacing: 0.2em; }
+
+  footer { margin-top: 80px; padding-top: 24px; border-top: 1px solid rgba(0,255,209,0.15);
+    color: #5a8ca0; font-size: 10px; letter-spacing: 0.2em; text-align: center; }
+  footer a { color: #7ad7ff; text-decoration: none; }
+  footer .ascii { color: #1a3848; font-size: 9px; line-height: 1; margin-bottom: 14px;
+    white-space: pre; font-family: monospace; }
+
+  @media (max-width: 720px) {
+    .summary-grid { grid-template-columns: repeat(2, 1fr); }
+    h1 { font-size: 30px; }
+  }
+</style>
+</head>
+<body>
+<div class="scanlines"></div>
+
+<header>
+  <h1>R E F L E X</h1>
+  <div class="subtitle">MIRROR ANALYSIS · SESSION PORTRAIT</div>
+  <div class="meta">
+    generated <span>2026-04-17 14:35 UTC</span>
+    &nbsp;·&nbsp; span <span>2026-04-17 13:57 → 14:12 UTC</span>
+    &nbsp;·&nbsp; events <span>272</span>
+    &nbsp;·&nbsp; surfaces <span>2</span>
+  </div>
+</header>
+
+<div class="summary-grid">
+  <div class="stat-card"><span class="v">272</span><div class="l">total events</div></div>
+  <div class="stat-card"><span class="v">115</span><div class="l">actions taken</div></div>
+  <div class="stat-card"><span class="v">2</span><div class="l">surfaces visited</div></div>
+  <div class="stat-card"><span class="v">15m 8s</span><div class="l">observed span</div></div>
+</div>
+
+<section id="action-response">
+  <h2><span class="idx">◉</span><span class="num">01 /</span> ACTION — RESPONSE ENVELOPE</h2>
+  <div class="description">For every action you took — a like, a comment, a message, a share — Reflex averages the activity density in the <em>30 requests before</em> and <em>30 requests after</em> the moment you tapped. The shape of the resulting curve is the algorithm's reply, averaged into visibility. A spike on the right means the system reacted. A flat line means it didn't — or at least not in a way your own requests could see.</div>
+  <svg xmlns="http://www.w3.org/2000/svg" width="100%" viewBox="0 0 900 340" class="plot" preserveAspectRatio="xMidYMid meet"><line x1="50.0" y1="50" x2="50.0" y2="290" class="grid-line"/><line x1="130.0" y1="50" x2="130.0" y2="290" class="grid-line"/><line x1="210.0" y1="50" x2="210.0" y2="290" class="grid-line"/><line x1="290.0" y1="50" x2="290.0" y2="290" class="grid-line"/><line x1="370.0" y1="50" x2="370.0" y2="290" class="grid-line"/><line x1="450.0" y1="50" x2="450.0" y2="290" class="grid-line"/><line x1="530.0" y1="50" x2="530.0" y2="290" class="grid-line"/><line x1="610.0" y1="50" x2="610.0" y2="290" class="grid-line"/><line x1="690.0" y1="50" x2="690.0" y2="290" class="grid-line"/><line x1="770.0" y1="50" x2="770.0" y2="290" class="grid-line"/><line x1="850.0" y1="50" x2="850.0" y2="290" class="grid-line"/><line x1="50" y1="50.0" x2="850" y2="50.0" class="grid-line"/><line x1="50" y1="98.0" x2="850" y2="98.0" class="grid-line"/><line x1="50" y1="146.0" x2="850" y2="146.0" class="grid-line"/><line x1="50" y1="194.0" x2="850" y2="194.0" class="grid-line"/><line x1="50" y1="242.0" x2="850" y2="242.0" class="grid-line"/><line x1="50" y1="290.0" x2="850" y2="290.0" class="grid-line"/><rect x="443.5" y="50" width="13.0" height="240" fill="#ff4fd8" opacity="0.08"/><line x1="450.0" y1="50" x2="450.0" y2="290" class="axis-mark"/><text x="450.0" y="44" class="label-sm" text-anchor="middle" fill="#ff4fd8">↓ YOU TAPPED</text><polygon points="60,290 60.0,111.9 73.0,118.9 86.0,110.1 99.0,120.5 112.0,128.9 125.0,122.0 138.0,127.0 151.0,108.2 164.0,145.3 177.0,128.4 190.0,128.4 203.0,115.0 216.0,128.4 229.0,118.3 242.0,125.1 255.0,109.9 268.0,109.9 281.0,83.2 294.0,108.1 307.0,118.1 320.0,128.0 333.0,113.0 346.0,119.6 359.0,126.1 372.0,142.5 385.0,113.0 398.0,124.3 411.0,114.6 424.0,137.3 437.0,137.3 450.0,289.0 463.0,139.2 476.0,139.2 489.0,119.6 502.0,136.0 515.0,119.6 528.0,139.2 541.0,129.4 554.0,128.0 567.0,114.8 580.0,129.9 593.0,128.4 606.0,118.3 619.0,81.3 632.0,111.6 645.0,104.9 658.0,125.1 671.0,118.3 684.0,128.4 697.0,108.2 710.0,111.6 723.0,111.6 736.0,137.2 749.0,93.0 762.0,116.8 775.0,120.2 788.0,120.2 801.0,115.2 814.0,111.8 827.0,120.5 840.0,113.6 840,290" fill="#7ad7ff" opacity="0.08"/><polyline points="60.0,111.9 73.0,118.9 86.0,110.1 99.0,120.5 112.0,128.9 125.0,122.0 138.0,127.0 151.0,108.2 164.0,145.3 177.0,128.4 190.0,128.4 203.0,115.0 216.0,128.4 229.0,118.3 242.0,125.1 255.0,109.9 268.0,109.9 281.0,83.2 294.0,108.1 307.0,118.1 320.0,128.0 333.0,113.0 346.0,119.6 359.0,126.1 372.0,142.5 385.0,113.0 398.0,124.3 411.0,114.6 424.0,137.3 437.0,137.3 450.0,289.0 463.0,139.2 476.0,139.2 489.0,119.6 502.0,136.0 515.0,119.6 528.0,139.2 541.0,129.4 554.0,128.0 567.0,114.8 580.0,129.9 593.0,128.4 606.0,118.3 619.0,81.3 632.0,111.6 645.0,104.9 658.0,125.1 671.0,118.3 684.0,128.4 697.0,108.2 710.0,111.6 723.0,111.6 736.0,137.2 749.0,93.0 762.0,116.8 775.0,120.2 788.0,120.2 801.0,115.2 814.0,111.8 827.0,120.5 840.0,113.6" fill="none" stroke="#7ad7ff" stroke-width="2.2" opacity="0.95"/><polyline points="60.0,104.9 73.0,101.4 86.0,110.1 99.0,106.6 112.0,94.6 125.0,98.0 138.0,99.8 151.0,121.7 164.0,84.7 177.0,101.5 190.0,108.2 203.0,111.6 216.0,94.8 229.0,104.9 242.0,94.8 255.0,109.9 268.0,103.2 281.0,129.9 294.0,101.5 307.0,91.6 320.0,81.7 333.0,99.9 346.0,93.4 359.0,83.5 372.0,70.4 385.0,96.6 398.0,82.1 411.0,98.3 424.0,75.6 437.0,72.3 450.0,50.0 463.0,70.4 476.0,73.7 489.0,96.6 502.0,83.5 515.0,96.6 528.0,73.7 541.0,86.8 554.0,88.3 567.0,98.2 580.0,79.8 593.0,88.0 606.0,98.1 619.0,131.8 632.0,101.5 645.0,111.6 658.0,94.8 671.0,108.2 684.0,91.4 697.0,111.6 710.0,104.9 723.0,104.9 736.0,82.8 749.0,123.6 762.0,99.8 775.0,103.2 788.0,96.4 801.0,108.3 814.0,108.3 827.0,103.2 840.0,103.2" fill="none" stroke="#ff4fd8" stroke-width="1" opacity="0.5" stroke-dasharray="3,2"/><text x="60.0" y="308" class="label-sm" text-anchor="middle">-30</text><text x="190.0" y="308" class="label-sm" text-anchor="middle">-20</text><text x="320.0" y="308" class="label-sm" text-anchor="middle">-10</text><text x="450.0" y="308" class="label-sm" text-anchor="middle">+0</text><text x="580.0" y="308" class="label-sm" text-anchor="middle">+10</text><text x="710.0" y="308" class="label-sm" text-anchor="middle">+20</text><text x="840.0" y="308" class="label-sm" text-anchor="middle">+30</text><text x="450.0" y="330" class="label-xs" text-anchor="middle" fill="#5a8ca0">offset from action (events)</text><text x="52" y="54" class="label-xs" text-anchor="end" fill="#5a8ca0">64%</text><text x="52" y="294" class="label-xs" text-anchor="end" fill="#5a8ca0">0%</text><line x1="640" y1="62" x2="660" y2="62" stroke="#7ad7ff" stroke-width="2"/><text x="666" y="66" class="label-sm" fill="#7ad7ff">feed response</text><line x1="640" y1="78" x2="660" y2="78" stroke="#ff4fd8" stroke-width="2" stroke-dasharray="3,2"/><text x="666" y="82" class="label-sm" fill="#ff4fd8">your actions</text></svg>
+  <div class="findings"><strong>◈ OBSERVATION</strong><p>Around your <em>115 actions</em>, the density of passive <em>view</em> events in the 10 requests immediately after the action held roughly flat (-2% vs the 10 requests before).</p><p>Translation: after you tap, the app served you about the same amount of content to scroll past.</p></div>
+</section>
+<section id="transitions">
+  <h2><span class="idx">◉</span><span class="num">02 /</span> SURFACE TRANSITION MATRIX</h2>
+  <div class="description">The probability that going to any surface <em>next</em> given your current surface. Rows are your current location, columns are where you go next. A strong diagonal means you tend to stay where you are — deep scrolling. Bright off-diagonal cells reveal your habitual paths: the routes your attention takes without you ever consciously choosing.</div>
+  <div class="plot-narrow"><div class="empty">Not enough distinct surfaces</div></div>
+  
+</section>
+<section id="rhythm">
+  <h2><span class="idx">◉</span><span class="num">03 /</span> SESSION RHYTHM</h2>
+  <div class="description">Activity density over time, bucketed by minute, stacked by category. The pink dots mark <em>burst moments</em> — buckets where your activity exceeded the session's baseline mean by more than 2 standard deviations. These are the moments you were really in it. Autocorrelation underneath reveals whether your session breathes at a regular cadence.</div>
+  <svg xmlns="http://www.w3.org/2000/svg" width="100%" viewBox="0 0 900 280" class="plot" preserveAspectRatio="xMidYMid meet"><line x1="40.0" y1="40" x2="40.0" y2="240" class="grid-line"/><line x1="108.3" y1="40" x2="108.3" y2="240" class="grid-line"/><line x1="176.7" y1="40" x2="176.7" y2="240" class="grid-line"/><line x1="245.0" y1="40" x2="245.0" y2="240" class="grid-line"/><line x1="313.3" y1="40" x2="313.3" y2="240" class="grid-line"/><line x1="381.7" y1="40" x2="381.7" y2="240" class="grid-line"/><line x1="450.0" y1="40" x2="450.0" y2="240" class="grid-line"/><line x1="518.3" y1="40" x2="518.3" y2="240" class="grid-line"/><line x1="586.7" y1="40" x2="586.7" y2="240" class="grid-line"/><line x1="655.0" y1="40" x2="655.0" y2="240" class="grid-line"/><line x1="723.3" y1="40" x2="723.3" y2="240" class="grid-line"/><line x1="791.7" y1="40" x2="791.7" y2="240" class="grid-line"/><line x1="860.0" y1="40" x2="860.0" y2="240" class="grid-line"/><line x1="40" y1="40.0" x2="860" y2="40.0" class="grid-line"/><line x1="40" y1="90.0" x2="860" y2="90.0" class="grid-line"/><line x1="40" y1="140.0" x2="860" y2="140.0" class="grid-line"/><line x1="40" y1="190.0" x2="860" y2="190.0" class="grid-line"/><line x1="40" y1="240.0" x2="860" y2="240.0" class="grid-line"/><rect x="40.0" y="231.4" width="50.5" height="8.6" fill="#7ad7ff" opacity="0.85"/><rect x="40.0" y="228.3" width="50.5" height="3.1" fill="#ff4fd8" opacity="0.85"/><rect x="808.8" y="134.2" width="50.5" height="105.8" fill="#7ad7ff" opacity="0.85"/><rect x="808.8" y="49.3" width="50.5" height="84.8" fill="#ff4fd8" opacity="0.85"/><rect x="808.8" y="48.6" width="50.5" height="0.8" fill="#fff275" opacity="0.85"/><rect x="808.8" y="47.8" width="50.5" height="0.8" fill="#ffb347" opacity="0.85"/><rect x="808.8" y="40.0" width="50.5" height="7.8" fill="#66ff99" opacity="0.85"/><text x="40" y="260" class="label-sm">session start</text><text x="860" y="260" class="label-sm" text-anchor="end">session end</text><text x="40" y="30" class="label-sm" fill="#ff4fd8">● burst</text></svg>
+  <div class="findings"><strong>◈ OBSERVATION</strong><p>Detected <em>0 burst moments</em> where activity spiked above baseline.</p><p>No clear periodic rhythm — your session is arrhythmic, driven by external triggers rather than internal cycles.</p></div>
+</section>
+<section id="hooks">
+  <h2><span class="idx">◉</span><span class="num">04 /</span> HOOK MOMENTS</h2>
+  <div class="description">For each action you took, Reflex looks at the <em>5 events immediately before</em> and measures which categories appear more often than their session-wide baseline. Lift values above 1.0× mean that category disproportionately precedes your taps — it's what gets you to act. This is the <em>hook</em>, empirically measured on you, by you.</div>
+  <svg xmlns="http://www.w3.org/2000/svg" width="100%" viewBox="0 0 700 260" class="plot" preserveAspectRatio="xMidYMid meet"><line x1="375.0" y1="35" x2="375.0" y2="235" class="axis-mark"/><text x="375.0" y="30" class="label-xs" text-anchor="middle" fill="#5a8ca0">baseline 1×</text><text x="100" y="59.833333333333336" class="label-sm" text-anchor="end" fill="#ff4fd8">act</text><rect x="110" y="44.8" width="350.1" height="22.2" fill="#ff4fd8" opacity="0.75"/><text x="466.05396071659834" y="59.833333333333336" class="label-sm" fill="#ff4fd8">1.32×</text><text x="100" y="91.5" class="label-sm" text-anchor="end" fill="#fff275">compose</text><rect x="110" y="76.4" width="265.0" height="22.2" fill="#fff275" opacity="0.75"/><text x="381.0" y="91.5" class="label-sm" fill="#fff275">1.00×</text><text x="100" y="123.16666666666667" class="label-sm" text-anchor="end" fill="#ffb347">msg</text><rect x="110" y="108.1" width="265.0" height="22.2" fill="#ffb347" opacity="0.75"/><text x="381.0" y="123.16666666666667" class="label-sm" fill="#ffb347">1.00×</text><text x="100" y="154.83333333333334" class="label-sm" text-anchor="end" fill="#9d7bff">search</text><rect x="110" y="139.8" width="265.0" height="22.2" fill="#9d7bff" opacity="0.75"/><text x="381.0" y="154.83333333333334" class="label-sm" fill="#9d7bff">1.00×</text><text x="100" y="186.50000000000003" class="label-sm" text-anchor="end" fill="#7ad7ff">view</text><rect x="110" y="171.4" width="216.1" height="22.2" fill="#7ad7ff" opacity="0.75"/><text x="332.1255303515135" y="186.50000000000003" class="label-sm" fill="#7ad7ff">0.82×</text><text x="100" y="218.16666666666669" class="label-sm" text-anchor="end" fill="#66ff99">nav</text><rect x="110" y="203.1" width="62.8" height="22.2" fill="#66ff99" opacity="0.75"/><text x="178.78745644599303" y="218.16666666666669" class="label-sm" fill="#66ff99">0.24×</text></svg>
+  <div class="findings"><strong>◈ OBSERVATION</strong><p>Events with category <em>act</em> are <em>1.32×</em> more likely to appear in the 5 requests immediately before you take an action, compared to baseline.</p><p>In other words: when you see <em>act</em> content, you're measurably more likely to respond.</p></div>
+</section>
+<section id="diurnal">
+  <h2><span class="idx">◉</span><span class="num">05 /</span> DIURNAL PORTRAIT</h2>
+  <div class="description">Your activity wrapped around a 24-hour clock, with each hour's petals colored by activity category. Length of a petal = total events in that hour. This is your temporal signature: the hours you belong to yourself, and the hours you belong to the feed.</div>
+  <div class="plot-narrow"><svg xmlns="http://www.w3.org/2000/svg" width="100%" viewBox="0 0 500 500" class="plot" preserveAspectRatio="xMidYMid meet"><line x1="250.0" y1="44.0" x2="250.0" y2="36.0" class="tick"/><text x="250.0" y="24.0" class="label-sm" text-anchor="middle">00</text><line x1="303.3" y1="51.0" x2="305.4" y2="43.3" class="tick"/><line x1="353.0" y1="71.6" x2="357.0" y2="64.7" class="tick"/><line x1="395.7" y1="104.3" x2="401.3" y2="98.7" class="tick"/><text x="412.6" y="91.4" class="label-sm" text-anchor="middle">03</text><line x1="428.4" y1="147.0" x2="435.3" y2="143.0" class="tick"/><line x1="449.0" y1="196.7" x2="456.7" y2="194.6" class="tick"/><line x1="456.0" y1="250.0" x2="464.0" y2="250.0" class="tick"/><text x="480.0" y="254.0" class="label-sm" text-anchor="middle">06</text><line x1="449.0" y1="303.3" x2="456.7" y2="305.4" class="tick"/><line x1="428.4" y1="353.0" x2="435.3" y2="357.0" class="tick"/><line x1="395.7" y1="395.7" x2="401.3" y2="401.3" class="tick"/><text x="412.6" y="416.6" class="label-sm" text-anchor="middle">09</text><line x1="353.0" y1="428.4" x2="357.0" y2="435.3" class="tick"/><line x1="303.3" y1="449.0" x2="305.4" y2="456.7" class="tick"/><line x1="250.0" y1="456.0" x2="250.0" y2="464.0" class="tick"/><text x="250.0" y="484.0" class="label-sm" text-anchor="middle">12</text><line x1="196.7" y1="449.0" x2="194.6" y2="456.7" class="tick"/><line x1="147.0" y1="428.4" x2="143.0" y2="435.3" class="tick"/><line x1="104.3" y1="395.7" x2="98.7" y2="401.3" class="tick"/><text x="87.4" y="416.6" class="label-sm" text-anchor="middle">15</text><line x1="71.6" y1="353.0" x2="64.7" y2="357.0" class="tick"/><line x1="51.0" y1="303.3" x2="43.3" y2="305.4" class="tick"/><line x1="44.0" y1="250.0" x2="36.0" y2="250.0" class="tick"/><text x="20.0" y="254.0" class="label-sm" text-anchor="middle">18</text><line x1="51.0" y1="196.7" x2="43.3" y2="194.6" class="tick"/><line x1="71.6" y1="147.0" x2="64.7" y2="143.0" class="tick"/><line x1="104.3" y1="104.3" x2="98.7" y2="98.7" class="tick"/><text x="87.4" y="91.4" class="label-sm" text-anchor="middle">21</text><line x1="147.0" y1="71.6" x2="143.0" y2="64.7" class="tick"/><line x1="196.7" y1="51.0" x2="194.6" y2="43.3" class="tick"/><circle cx="250.0" cy="250.0" r="95.0" fill="none" class="ring"/><circle cx="250.0" cy="250.0" r="130.0" fill="none" class="ring"/><circle cx="250.0" cy="250.0" r="165.0" fill="none" class="ring"/><circle cx="250.0" cy="250.0" r="200.0" fill="none" class="ring"/><path d="M 240.7,315.3 A 66.0,66.0 0 0 1 225.4,311.2 L 227.6,305.7 A 60.0,60.0 0 0 0 241.6,309.4 Z" fill="#7ad7ff" opacity="0.8"/><path d="M 240.4,317.5 A 68.2,68.2 0 0 1 224.5,313.2 L 225.4,311.2 A 66.0,66.0 0 0 0 240.7,315.3 Z" fill="#ff4fd8" opacity="0.8"/><path d="M 197.5,373.4 A 134.1,134.1 0 0 1 169.4,357.2 L 214.0,298.0 A 60.0,60.0 0 0 0 226.5,305.2 Z" fill="#7ad7ff" opacity="0.8"/><path d="M 174.2,428.0 A 193.5,193.5 0 0 1 133.8,404.7 L 169.4,357.2 A 134.1,134.1 0 0 0 197.5,373.4 Z" fill="#ff4fd8" opacity="0.8"/><path d="M 174.0,428.5 A 194.0,194.0 0 0 1 133.4,405.1 L 133.8,404.7 A 193.5,193.5 0 0 0 174.2,428.0 Z" fill="#fff275" opacity="0.8"/><path d="M 173.8,429.0 A 194.6,194.6 0 0 1 133.1,405.5 L 133.4,405.1 A 194.0,194.0 0 0 0 174.0,428.5 Z" fill="#ffb347" opacity="0.8"/><path d="M 171.6,434.0 A 200.0,200.0 0 0 1 129.8,409.9 L 133.1,405.5 A 194.6,194.6 0 0 0 173.8,429.0 Z" fill="#66ff99" opacity="0.8"/><text x="126.0" y="468.8" class="label-sm" text-anchor="middle" fill="#ff4fd8">PEAK</text><text x="250.0" y="246.0" class="label-sm" text-anchor="middle" fill="#5a8ca0">24H</text><text x="250.0" y="264.0" class="label-xs" text-anchor="middle" fill="#5a8ca0">UTC</text></svg></div>
+  <div class="findings"><strong>◈ OBSERVATION</strong><p>Peak activity at <em>14:00 UTC</em> — 94% of all observed events fall in that single hour.</p><p>This wheel is a clock. It tells you when you are most <em>available</em> to the feed.</p></div>
+</section>
+<section id="predictions">
+  <h2><span class="idx">◉</span><span class="num">06 /</span> PREDICTION ENGINE</h2>
+  <div class="description">Reflex splits your session 80/20, trains a Markov model on the earlier chunk, and uses it to predict each next event in the later chunk. The accuracy bars on the left show how well that model performs against a naive baseline of always guessing your most-visited surface. The crystal ball on the right applies the fully-trained model to your <em>very last</em> event and asks: if you kept going right now, what would you probably do?</div>
+  <svg xmlns="http://www.w3.org/2000/svg" width="100%" viewBox="0 0 900 420" class="plot" preserveAspectRatio="xMidYMid meet"><text x="40" y="54" class="label-sm" fill="#7ad7ff">model route</text><rect x="40" y="60" width="240" height="14" fill="#0a2030" stroke="#1a3848" stroke-width="1"/><rect x="40" y="60" width="240.0" height="14" fill="#00ffd1" opacity="0.85"/><text x="290" y="71" class="label-sm" fill="#00ffd1">100.0%</text><text x="40" y="109" class="label-sm" fill="#7ad7ff">model top-3 route</text><rect x="40" y="115" width="240" height="14" fill="#0a2030" stroke="#1a3848" stroke-width="1"/><rect x="40" y="115" width="240.0" height="14" fill="#00ffd1" opacity="0.85"/><text x="290" y="126" class="label-sm" fill="#00ffd1">100.0%</text><text x="40" y="164" class="label-sm" fill="#7ad7ff">model category</text><rect x="40" y="170" width="240" height="14" fill="#0a2030" stroke="#1a3848" stroke-width="1"/><rect x="40" y="170" width="168.9" height="14" fill="#00ffd1" opacity="0.85"/><text x="290" y="181" class="label-sm" fill="#00ffd1">70.4%</text><text x="40" y="219" class="label-sm" fill="#7ad7ff">baseline (mode)</text><rect x="40" y="225" width="240" height="14" fill="#0a2030" stroke="#1a3848" stroke-width="1"/><rect x="40" y="225" width="240.0" height="14" fill="#5a8ca0" opacity="0.85"/><text x="290" y="236" class="label-sm" fill="#5a8ca0">100.0%</text><text x="480" y="60" class="label-xs" fill="#5a8ca0">◈ CRYSTAL BALL · if you kept going from here</text><text x="480" y="80" class="label-sm" fill="#00ffd1">last surface: HOME FEED</text><text x="480" y="118" class="label-xs" fill="#5a8ca0">most likely next surface</text><text x="480" y="149" class="label-sm" fill="#00ffd1">HOME FEED</text><rect x="600" y="138" width="220" height="16" fill="#0a2030"/><rect x="600" y="138" width="218.8" height="16" fill="#00ffd1" opacity="0.8"/><text x="830" y="150" class="label-sm" fill="#00ffd1" text-anchor="end">99%</text><text x="480" y="179" class="label-sm" fill="#7ad7ff">comet.fbweb.CometProfileTimelineListViewRoute</text><rect x="600" y="168" width="220" height="16" fill="#0a2030"/><rect x="600" y="168" width="1.2" height="16" fill="#7ad7ff" opacity="0.8"/><text x="830" y="180" class="label-sm" fill="#7ad7ff" text-anchor="end">1%</text><text x="480" y="300" class="label-xs" fill="#5a8ca0">P(you take an action in the next 5 events)</text><rect x="480" y="310" width="380" height="20" fill="#0a2030" stroke="#1a3848" stroke-width="1"/><rect x="480" y="310" width="338.4" height="20" fill="#ff4fd8" opacity="0.85"/><text x="670.0" y="325" class="label-sm" text-anchor="middle" fill="#fff">89.0%</text></svg>
+  <div class="findings"><strong>◈ OBSERVATION</strong><p>A simple Markov model trained on the first 80% of your session predicts the next surface with <em>100.0%</em> accuracy on the held-out 20% — <em>1.00×</em> better than guessing the most common surface.</p><p>From where you left off, the most likely next move is <em>HOME FEED</em> (99% chance).</p><p>The mirror reflects. The mirror predicts.</p></div>
+</section>
+
+<footer>
+  <div class="ascii">▓▒░ reflex v0.1.0 ░▒▓</div>
+  <div>self-portrait · rendered locally · no network · inspect the shadow</div>
+</footer>
+
+</body>
+</html>
