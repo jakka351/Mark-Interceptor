@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 ╔═══════════════════════════════════════════════════════════════╗
-║  COSMOS RELAY · Session Cosmos Bridge Server  (v1.2)          ║
+║  COSMOS RELAY · Session Cosmos Bridge Server  (v2.0)          ║
 ║                                                               ║
 ║  Receives Facebook blob captures from the browser userscript  ║
 ║  and broadcasts them to connected Session Cosmos clients.     ║
@@ -10,6 +10,11 @@
 ║        connection drops through NAT/proxies/firewalls.        ║
 ║  v1.2: --log PATH flag appends every blob to an NDJSON file   ║
 ║        for direct use with Reflex (offline analysis).         ║
+║  v2.0: Accept multi-kind events from userscript v2.0          ║
+║        (__kind=request|input|visibility), route definitions,  ║
+║        sequence counter on broadcasts, per-kind log stats,    ║
+║        health endpoint reports kind-split counts.             ║
+║        Fully backward-compatible with userscript v1.0 / v1.1. ║
 ║                                                               ║
 ║  Requires: Python 3.7+ (stdlib only, no pip installs)         ║
 ║  Run:      python cosmos_relay.py                             ║
@@ -39,6 +44,10 @@ READ_TIMEOUT = 300  # max idle time before forcing close (5 min)
 LOG_FILE = None        # type: Optional[TextIO]
 LOG_PATH = None        # type: Optional[Path]
 LOG_COUNT = 0          # total blobs written this run
+# v2.0: per-kind counters for the /health endpoint
+KIND_COUNTS = {'request': 0, 'input': 0, 'visibility': 0, 'other': 0}
+# v2.0: monotonic server-side sequence id, stamped on every broadcast
+BROADCAST_SEQ = 0
 
 class C:
     CYAN = "\033[96m"
@@ -66,7 +75,7 @@ def banner():
 ║  ██      ██    ██      ██ ██  ██  ██ ██    ██      ██         ║
 ║   ██████  ██████  ███████ ██      ██  ██████  ███████         ║
 ║                                                               ║
-║                     R E L A Y   v 1 . 2                       ║
+║                     R E L A Y   v 2 . 0                       ║
 ║                                                               ║
 ╚═══════════════════════════════════════════════════════════════╝{C.RESET}
     {C.GRAY}Session Cosmos telemetry bridge{C.RESET}
@@ -202,8 +211,10 @@ async def handle_websocket(reader, writer):
 
         # Say hello
         await client.send_text(json.dumps({
-            "__type": "hello", "relay": "cosmos_relay", "version": "1.2",
+            "__type": "hello", "relay": "cosmos_relay", "version": "2.0",
             "ping_interval": PING_INTERVAL,
+            "supports_kinds": ["request", "input", "visibility"],
+            "broadcast_seq": BROADCAST_SEQ,
         }))
 
         # Start heartbeat pings
@@ -260,13 +271,27 @@ async def handle_websocket(reader, writer):
 
 
 async def broadcast(payload: dict):
-    # Log first — file writes happen regardless of whether anyone is connected.
-    # That way the relay is a valid capture tool even with zero browser clients.
-    global LOG_COUNT
+    """Log + fan out one payload. v2.0: stamps __relay_seq, tracks __kind counts."""
+    global LOG_COUNT, BROADCAST_SEQ
+
+    # v2.0: add a server-side monotonic sequence id. This lets downstream tools
+    # (Reflex, reflex_live.html) detect dropped broadcasts and order robustly
+    # across client-side clock skew.
+    BROADCAST_SEQ += 1
+    payload = dict(payload)
+    payload['__relay_seq'] = BROADCAST_SEQ
+
+    # v2.0: per-kind accounting
+    kind = payload.get('__kind', 'request')
+    if kind in KIND_COUNTS:
+        KIND_COUNTS[kind] += 1
+    else:
+        KIND_COUNTS['other'] += 1
+
     if LOG_FILE is not None:
         try:
             LOG_FILE.write(json.dumps(payload, separators=(',', ':')) + '\n')
-            LOG_FILE.flush()  # flush per-line so kill -9 doesn't lose data
+            LOG_FILE.flush()  # per-line flush — kill -9 never drops blobs
             LOG_COUNT += 1
         except (OSError, ValueError) as e:
             log(f"log write failed: {e}", C.YELLOW)
@@ -321,13 +346,15 @@ async def handle_http(reader, writer):
             body = json.dumps({
                 "status": "ok",
                 "clients": len(clients),
-                "version": "1.2",
+                "version": "2.0",
                 "ports": {"ws": WS_PORT, "http": HTTP_PORT},
                 "log": {
                     "enabled": LOG_FILE is not None,
                     "path": str(LOG_PATH) if LOG_PATH else None,
                     "written": LOG_COUNT,
                 },
+                "kinds": dict(KIND_COUNTS),
+                "broadcast_seq": BROADCAST_SEQ,
             }).encode()
             writer.write(
                 b"HTTP/1.1 200 OK\r\n"
@@ -354,20 +381,33 @@ async def handle_http(reader, writer):
 
             count = await broadcast(blob)
 
-            req = blob.get("__req", "?")
-            crn = (blob.get("__crn") or "?").replace("comet.fbweb.", "")
-            ccg = blob.get("__ccg", "?")
-            friendly = blob.get("fb_api_req_friendly_name", "")
-            friendly_short = (friendly[:32] + "…") if len(friendly) > 32 else friendly
-            log(
-                f"▸ BLOB  req={C.BOLD}{str(req):>6}{C.RESET}  "
-                f"route={C.CYAN}{crn:<28}{C.RESET}  "
-                f"op={C.YELLOW}{friendly_short:<33}{C.RESET}  "
-                f"↗ {count} client(s)",
-                C.PINK,
-            )
+            # v2.0 log line adapts to event kind (request vs input vs visibility)
+            kind = blob.get("__kind", "request")
+            if kind == "request":
+                req = blob.get("__req", "?")
+                crn = (blob.get("__crn") or "?").replace("comet.fbweb.", "").replace("comet.bizweb.", "biz.")
+                friendly = blob.get("fb_api_req_friendly_name", "")
+                friendly_short = (friendly[:32] + "…") if len(friendly) > 32 else friendly
+                lat = blob.get("__latency_ms")
+                lat_str = f"{lat}ms" if lat else "     "
+                log(
+                    f"▸ BLOB  req={C.BOLD}{str(req):>6}{C.RESET}  "
+                    f"route={C.CYAN}{crn:<28}{C.RESET}  "
+                    f"op={C.YELLOW}{friendly_short:<33}{C.RESET}  "
+                    f"{C.DIM}{lat_str:>6}{C.RESET}  ↗ {count} client(s)",
+                    C.PINK,
+                )
+            elif kind == "input":
+                ev = blob.get("__event", "?")
+                v = blob.get("__velocity_px_per_s") or blob.get("__delta_px", "")
+                log(f"▸ INPUT {ev}  {v}  ↗ {count} client(s)", C.GREEN)
+            elif kind == "visibility":
+                ev = blob.get("__event", "?")
+                log(f"▸ VIS   {ev}  ↗ {count} client(s)", C.YELLOW)
+            else:
+                log(f"▸ ???   kind={kind}  ↗ {count} client(s)", C.GRAY)
 
-            resp = json.dumps({"ok": True, "broadcast_to": count}).encode()
+            resp = json.dumps({"ok": True, "broadcast_to": count, "relay_seq": BROADCAST_SEQ}).encode()
             writer.write(
                 b"HTTP/1.1 200 OK\r\n"
                 b"Content-Type: application/json\r\n"
