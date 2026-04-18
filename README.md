@@ -9,7 +9,9 @@ A two-part, localhost-only toolkit for algorithmic self-research:
 - **Reflex** — reads the captured stream back offline and produces a single self-contained HTML portrait of the feedback loop between *you* and the ranking algorithm.
 
 <sup>
-Pure Python stdlib on the backend. Zero build step on the frontend. Nothing leaves your machine. No Facebook API. No third-party data. No calls home.
+   
+**Pure Python stdlib on the backend. Zero build step on the frontend. Nothing leaves your machine. No Facebook API. No third-party data. No calls home.**
+   
 </sup>
 
 <img width="929" height="381" alt="image" src="https://github.com/user-attachments/assets/cb280570-c38e-45a4-bc46-5c2266c97283" />
